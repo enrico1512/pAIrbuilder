@@ -83,11 +83,13 @@ export async function parsePDFDetailed(file: File): Promise<{ text: string, imag
                 }
             }
             
+            // Always render every page as image so AI vision can read graphical/design menus
+            // Use lower scale for pages with good text to save bandwidth
             let pageImage: string | null = null;
-            // Threshold updated to 50 chars for better fallback to vision on complex layouts
-            if (items.length < 100 || pageText.length < 50) {
-                // Adaptive scaling: higher for image-only pages
-                const scale = pageText.length < 20 ? 1.8 : 1.2;
+            const hasGoodText = pageText.length >= 200 && items.length >= 50;
+            const scale = hasGoodText ? 1.0 : 1.5;
+            const quality = hasGoodText ? 0.6 : 0.75;
+            try {
                 const canvas = document.createElement('canvas');
                 const viewport = page.getViewport({ scale });
                 const context = canvas.getContext('2d');
@@ -95,8 +97,10 @@ export async function parsePDFDetailed(file: File): Promise<{ text: string, imag
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     await (page as any).render({ canvasContext: context, viewport } as any).promise;
-                    pageImage = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+                    pageImage = canvas.toDataURL('image/jpeg', quality).split(',')[1];
                 }
+            } catch (renderErr) {
+                console.warn(`Page ${pageNum} image render failed:`, renderErr);
             }
             
             return { text: pageText, image: pageImage, pageNum };

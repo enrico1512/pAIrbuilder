@@ -1,8 +1,6 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { performOCR } from "./vision";
 import { learningService } from "./learningService";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export interface Dish {
   category: string;
@@ -68,28 +66,37 @@ async function safeGenerateContent(modelName: string, contents: any, config: any
 
   while (attempts < maxAttempts) {
     try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents,
-        config
+      // Call server-side proxy to keep API key secure and avoid browser 403/CORS
+      const resp = await fetch("/api/gemini/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelName, contents, config })
       });
-      return response.text;
-    } catch (e: any) {
-      attempts++;
-      console.error(`Gemini Attempt ${attempts} using ${modelName} failed:`, e);
 
-      const errorMessage = e.message || String(e);
-      const isTransient = errorMessage.includes("500") || 
-                        errorMessage.includes("INTERNAL") || 
-                        errorMessage.includes("overloaded") ||
-                        errorMessage.includes("deadline") ||
-                        errorMessage.includes("503") ||
-                        errorMessage.includes("expired") ||
-                        errorMessage.includes("429");
-      
-      if (isTransient && attempts < maxAttempts) {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const status = resp.status;
+        attempts++;
+        console.error(`Gemini Attempt ${attempts} using ${modelName} failed:`, { status });
+        // 429 = quota exhausted — no point retrying, go straight to fallback
+        const isTransient = (status === 500 || status === 503) && attempts < maxAttempts;
+        if (isTransient) {
+          const waitTime = Math.pow(2, attempts) * 1000 + Math.random() * 500;
+          console.warn(`Retrying in ${Math.round(waitTime)}ms...`);
+          await delay(waitTime);
+          continue;
+        }
+        throw Object.assign(new Error(err.error || `HTTP ${status}`), { status });
+      }
+
+      const data = await resp.json();
+      return data.text as string;
+    } catch (e: any) {
+      if (e.status) throw e; // already handled above
+      attempts++;
+      console.error(`Gemini Attempt ${attempts} network error:`, e);
+      if (attempts < maxAttempts) {
         const waitTime = Math.pow(2, attempts) * 1000 + Math.random() * 500;
-        console.warn(`Retrying in ${Math.round(waitTime)}ms...`);
         await delay(waitTime);
         continue;
       }
@@ -97,6 +104,92 @@ async function safeGenerateContent(modelName: string, contents: any, config: any
     }
   }
 }
+
+// ─── OpenAI Fallback Helpers ─────────────────────────────────────────────────
+
+async function callOpenAIMenuScan(
+  pageData: { text?: string; imageBase64?: string; images?: string[] },
+  allowPizzas: boolean = false
+): Promise<{ dishes: string[]; drinks: string[] }> {
+  console.warn("[AI Fallback] Gemini quota → using OpenAI menu-scan...");
+  // Send ALL images (all pages), not just the first one
+  const allImages: string[] = [];
+  if (pageData.imageBase64) allImages.push(pageData.imageBase64);
+  if (pageData.images) allImages.push(...pageData.images);
+
+  const response = await fetch("/api/openai/menu-scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: pageData.text,
+      images: allImages.length > 0 ? allImages : undefined,
+      allowPizzas
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI menu-scan failed: ${response.status}`);
+  const data = await response.json();
+  return {
+    dishes: Array.isArray(data.dishes) ? data.dishes.filter((d: any) => typeof d === "string") : [],
+    drinks: Array.isArray(data.drinks) ? data.drinks.filter((d: any) => typeof d === "string") : []
+  };
+}
+
+async function callOpenAIMenuExtract(
+  pageSources: any[],
+  itemNames: string[],
+  type: "dishes" | "drinks"
+): Promise<any[]> {
+  console.warn(`[AI Fallback] Gemini quota → using OpenAI menu-extract for ${type}...`);
+  const combinedText = pageSources.map(s => s.text || "").filter(Boolean).join("\n\n");
+  // Collect ALL images from all page sources
+  const allImages: string[] = [];
+  for (const s of pageSources) {
+    if (s.imageBase64) allImages.push(s.imageBase64);
+    if (Array.isArray(s.images)) allImages.push(...s.images);
+  }
+
+  const response = await fetch("/api/openai/menu-extract", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: combinedText || undefined,
+      images: allImages.length > 0 ? allImages : undefined,
+      itemNames,
+      type
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI menu-extract failed: ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+async function callOpenAIPairings(
+  restaurantInfo: string,
+  dishes: Dish[],
+  drinks: Drink[]
+): Promise<Pairing[]> {
+  console.warn("[AI Fallback] Gemini quota → using OpenAI pairings...");
+  const response = await fetch("/api/openai/pairings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ restaurantInfo, dishes, drinks })
+  });
+  if (!response.ok) throw new Error(`OpenAI pairings failed: ${response.status}`);
+  const data = await response.json();
+  const raw = Array.isArray(data.pairings) ? data.pairings : (Array.isArray(data) ? data : []);
+  return raw.map((p: any) => ({
+    ...p,
+    dish: cleanAccents(p.dish || ""),
+    drinks: (p.drinks || []).map((d: any) => ({
+      ...d,
+      name: cleanAccents(d.name || ""),
+      category: cleanAccents(d.category || ""),
+      description: cleanAccents(d.description || "")
+    }))
+  }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Utility to run tasks with limited concurrency
@@ -314,25 +407,36 @@ export async function listItemNames(
     if (pageData.images) pageData.images.forEach(img => parts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
     if (pageData.text) parts.push({ text: `RAW CONTENT TO SCAN:\n${pageData.text}` });
 
-    const resultText = await safeGenerateContent(
-      "gemini-3-flash-preview", 
-      [{ parts }],
-      {
-        temperature: 0,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            dishes: { type: Type.ARRAY, items: { type: Type.STRING } },
-            drinks: { type: Type.ARRAY, items: { type: Type.STRING } },
+    let result: any;
+    try {
+      const resultText = await safeGenerateContent(
+        "gemini-2.0-flash",
+        [{ parts }],
+        {
+          temperature: 0,
+          maxOutputTokens: 8192,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              dishes: { type: Type.ARRAY, items: { type: Type.STRING } },
+              drinks: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ["dishes", "drinks"],
           },
-          required: ["dishes", "drinks"],
-        },
+        }
+      );
+      result = repairJson(resultText || "{}");
+    } catch (geminiErr) {
+      console.warn("[listItemNames] Gemini failed, falling back to OpenAI:", geminiErr);
+      try {
+        return await callOpenAIMenuScan(pageData, allowPizzas);
+      } catch (openaiErr) {
+        console.error("[listItemNames] OpenAI fallback also failed:", openaiErr);
+        return { dishes: [], drinks: [] };
       }
-    );
+    }
 
-    const result = repairJson(resultText || "{}");
     return {
       dishes: (Array.isArray(result.dishes) ? result.dishes : []).map(cleanAccents),
       drinks: (Array.isArray(result.drinks) ? result.drinks : []).map(cleanAccents)
@@ -424,32 +528,44 @@ async function extractItemsBatch(
     }
   };
 
-  try {
-    const apiCall = safeGenerateContent("gemini-3-flash-preview", [{ parts }], config);
-    // Increased timeout to 120s to prioritize reading over speed
-    const resultText = await timeoutPromise(120000, apiCall).catch(e => {
-        console.warn(`Batch timeout (120s) for ${type}:`, e.message);
-        return null;
-    });
-
-    if (!resultText) return [];
-    const result = repairJson(resultText);
-    const items = Array.isArray(result.items) ? result.items : [];
-    
+  const parseItems = (raw: any) => {
+    const items = Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw) ? raw : []);
     return items.map((item: any) => {
       const cleaned: any = {};
       for (const key in item) {
-        if (typeof item[key] === 'string') {
-          cleaned[key] = cleanAccents(item[key]);
-        } else {
-          cleaned[key] = item[key];
-        }
+        cleaned[key] = typeof item[key] === "string" ? cleanAccents(item[key]) : item[key];
       }
       return cleaned;
     });
+  };
+
+  try {
+    const apiCall = safeGenerateContent("gemini-2.0-flash", [{ parts }], config);
+    const resultText = await timeoutPromise(120000, apiCall).catch(e => {
+      console.warn(`Batch timeout (120s) for ${type}:`, e.message);
+      return null;
+    });
+
+    if (resultText) {
+      const result = repairJson(resultText);
+      const items = parseItems(result);
+      if (items.length > 0) return items;
+    }
+
+    // Gemini returned nothing or timed out → try OpenAI
+    console.warn(`[extractItemsBatch] Gemini returned empty for ${type}, trying OpenAI...`);
+    const openaiItems = await callOpenAIMenuExtract(pageSources, itemNames, type);
+    return parseItems({ items: openaiItems });
+
   } catch (e) {
-    console.error(`Batch extraction failed for ${type}:`, e);
-    return [];
+    console.warn(`[extractItemsBatch] Gemini failed for ${type}, trying OpenAI:`, e);
+    try {
+      const openaiItems = await callOpenAIMenuExtract(pageSources, itemNames, type);
+      return parseItems({ items: openaiItems });
+    } catch (openaiErr) {
+      console.error(`[extractItemsBatch] OpenAI fallback also failed for ${type}:`, openaiErr);
+      return [];
+    }
   }
 }
 
@@ -596,40 +712,36 @@ export async function analyzeDrinksWithMenu(
 
   const data = `PIATTI: ${dishes.map(d => d.name).join(", ")}\nDRINKS: ${drinks.map(d => `${d.producer} ${d.product} (${d.category})`).join(", ")}`;
 
+  const localCleanAccents = (t: string) =>
+    t.replace(/[àáâãäå]/g, "a'").replace(/[èéêë]/g, "e'").replace(/[ìíîï]/g, "i'")
+     .replace(/[òóôõö]/g, "o'").replace(/[ùúûü]/g, "u'").replace(/[ÀÁÂÃÄÅ]/g, "A'")
+     .replace(/[ÈÉÊË]/g, "E'").replace(/[ÌÍÎÏ]/g, "I'").replace(/[ÒÓÔÕÖ]/g, "O'")
+     .replace(/[ÙÚÛÜ]/g, "U'");
+
+  const staticFallback = () => {
+    const mainCat = topCategories[0]?.split("% ")[1] || "prodotti";
+    return {
+      stats,
+      strategy: localCleanAccents(`Dioniso rileva una forte presenza di ${mainCat}. Questa selezione si presta a sostenere la complessita' dei piatti in menu, offrendo l'opportunita' di spingere etichette con maggiore margine e migliorare la rotazione del magazzino.`)
+    };
+  };
+
   try {
     const text = await safeGenerateContent(
-      "gemini-3-flash-preview", 
+      "gemini-2.0-flash",
       [{ parts: [{ text: prompt }, { text: data }] }],
       { temperature: 0.5, maxOutputTokens: 150 }
     );
-    
-    // Clean potential accidental accents from AI
-    const cleanAccents = (t: string) => {
-      return t
-        .replace(/[àáâãäå]/g, "a'")
-        .replace(/[èéêë]/g, "e'")
-        .replace(/[ìíîï]/g, "i'")
-        .replace(/[òóôõö]/g, "o'")
-        .replace(/[ùúûü]/g, "u'")
-        .replace(/[ÀÁÂÃÄÅ]/g, "A'")
-        .replace(/[ÈÉÊË]/g, "E'")
-        .replace(/[ÌÍÎÏ]/g, "I'")
-        .replace(/[ÒÓÔÕÖ]/g, "O'")
-        .replace(/[ÙÚÛÜ]/g, "U'");
-    };
 
-    return {
-      stats,
-      strategy: cleanAccents(text || "Analisi non disponibile.")
-    };
+    if (text) return { stats, strategy: localCleanAccents(text) };
+
+    // Gemini returned empty → use static fallback
+    console.warn("[analyzeDrinksWithMenu] Gemini empty, using static fallback...");
+    return staticFallback();
+
   } catch (e) {
-    console.error("Analysis failed:", e);
-    const mainCat = topCategories[0]?.split('% ')[1] || 'prodotti';
-    const fallbackStrategy = cleanAccents(`Dioniso rileva una forte presenza di ${mainCat}. Questa selezione si presta a sostenere la complessita' dei piatti in menu, offrendo l'opportunita' di spingere etichette con maggiore margine e migliorare la rotazione del magazzino.`);
-    return { 
-      stats, 
-      strategy: fallbackStrategy
-    };
+    console.warn("[analyzeDrinksWithMenu] Gemini failed, using static fallback:", e);
+    return staticFallback();
   }
 }
 
@@ -667,7 +779,7 @@ export async function generatePairings(
       
       PAIRING LOGIC:
       1. For each dish, provide 1 pairing by "Concordanza" (Congruence) and 1 by "Contrapposizione" (Contrast).
-      2. Use ONLY the provided drinks list. Give priority to drinks that seem most appropriate or prestigious.
+      2. PRIORITY DRINKS (MANDATORY): Some drinks in the list are marked with *** PRIORITY: ... ***. You MUST use these drinks as often as possible — they are the restaurant's strategic selections and MUST appear in the majority of pairings. When a priority drink is even remotely suitable, always choose it over a non-priority one.
       3. CRITICAL: You MUST process EVERY SINGLE DISH in THIS batch (${batch.length} dishes). Do NOT skip any.
       4. You MUST use ONLY drinks from the provided DRINKS LIST. Never invent drinks not in the list. If no suitable drink exists, use the closest available one.
       5. Each description MUST be exactly 3 lines long.
@@ -680,9 +792,21 @@ export async function generatePairings(
 
     const batchData = `DISHES IN THIS BATCH: ${JSON.stringify(batch)}\nDRINKS LIST: ${drinkData}`;
 
+    const cleanPairings = (raw: any[]) =>
+      raw.map((p: any) => ({
+        ...p,
+        dish: cleanAccents(p.dish),
+        drinks: (p.drinks || []).map((d: any) => ({
+          ...d,
+          name: cleanAccents(d.name),
+          category: cleanAccents(d.category),
+          description: cleanAccents(d.description)
+        }))
+      }));
+
     try {
       const text = await safeGenerateContent(
-        "gemini-3-flash-preview",
+        "gemini-2.0-flash",
         [{ parts: [{ text: prompt }, { text: batchData }] }],
         {
           temperature: 0.1,
@@ -716,23 +840,25 @@ export async function generatePairings(
           },
         }
       );
-      
-      if (!text) return [];
-      const result = repairJson(text);
-      const pairings = Array.isArray(result) ? result : [];
-      return pairings.map((p: any) => ({
-        ...p,
-        dish: cleanAccents(p.dish),
-        drinks: (p.drinks || []).map((d: any) => ({
-          ...d,
-          name: cleanAccents(d.name),
-          category: cleanAccents(d.category),
-          description: cleanAccents(d.description)
-        }))
-      }));
+
+      if (text) {
+        const result = repairJson(text);
+        const pairings = Array.isArray(result) ? result : [];
+        if (pairings.length > 0) return cleanPairings(pairings);
+      }
+
+      // Gemini returned nothing → try OpenAI
+      console.warn(`[generatePairings] Gemini empty for batch ${batchIndex + 1}, trying OpenAI...`);
+      return cleanPairings(await callOpenAIPairings(restaurantInfo, batch, drinks));
+
     } catch (e) {
-      console.error(`Gemini Pairing Error in batch ${batchIndex + 1}:`, e);
-      return [];
+      console.warn(`[generatePairings] Gemini failed for batch ${batchIndex + 1}, trying OpenAI:`, e);
+      try {
+        return cleanPairings(await callOpenAIPairings(restaurantInfo, batch, drinks));
+      } catch (openaiErr) {
+        console.error(`[generatePairings] OpenAI fallback also failed for batch ${batchIndex + 1}:`, openaiErr);
+        return [];
+      }
     }
   });
 

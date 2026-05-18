@@ -7,6 +7,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { and, eq } from 'drizzle-orm';
+import { GoogleGenAI } from '@google/genai';
 import { db, pool } from './db/client';
 import {
   restaurants,
@@ -28,7 +29,8 @@ declare module 'express-session' {
 }
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = Number(process.env.PORT) || 3000;
+const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 async function startServer() {
   const app = express();
@@ -209,12 +211,43 @@ async function startServer() {
   app.get('/api/config-check', (req, res) => {
     const hasVision = !!process.env.GOOGLE_CLOUD_VISION_API_KEY;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
+    const hasGemini = !!process.env.GEMINI_API_KEY;
+    let status: string;
+    if (hasVision && hasOpenAI) {
+      status = 'Full';
+    } else if (!hasVision && !hasOpenAI) {
+      status = 'Standard';
+    } else {
+      status = 'Extended';
+    }
     res.json({
       visionApiKeyPresent: hasVision,
       openaiApiKeyPresent: hasOpenAI,
-      status: hasVision && hasOpenAI ? 'Ready' : 'Partial Configuration',
-      message: `${hasVision ? 'OK Vision' : 'NO Vision'} | ${hasOpenAI ? 'OK OpenAI' : 'NO OpenAI'}`,
+      geminiApiKeyPresent: hasGemini,
+      appUrl: APP_URL,
+      status,
+      message: `Gemini: ${hasGemini ? 'OK' : 'NO'} | Vision OCR: ${hasVision ? 'OK' : 'opzionale'} | OpenAI: ${hasOpenAI ? 'OK' : 'opzionale'}`,
     });
+  });
+
+  // ====================================================================
+  // AI Proxy: Gemini (chiave server-side, evita 403/CORS dal browser)
+  // ====================================================================
+  app.post('/api/gemini/generate', async (req, res) => {
+    const { model, contents, config } = req.body;
+    const API_KEY = process.env.GEMINI_API_KEY;
+    if (!API_KEY) {
+      return res.status(500).json({ error: 'Missing Gemini API Key on server.' });
+    }
+    try {
+      const genai = new GoogleGenAI({ apiKey: API_KEY });
+      const response = await genai.models.generateContent({ model, contents, config });
+      res.json({ text: response.text });
+    } catch (error: any) {
+      const status = error?.status || 500;
+      console.error(`[Gemini Proxy] Error (${status}):`, error?.message || error);
+      res.status(status).json({ error: error?.message || 'Gemini generation failed', status });
+    }
   });
 
   // ====================================================================
@@ -245,12 +278,15 @@ async function startServer() {
       );
       const data = await response.json();
       if (!response.ok) {
+        console.error('Google Vision API Error Response:', data);
         return res.status(response.status).json({
           error: data.error?.message || 'Google Vision API error',
           code: response.status,
           details: data.error?.details || null,
         });
       }
+      const text = data.responses?.[0]?.fullTextAnnotation?.text || '';
+      console.log(`[OCR SUCCESS] Extracted ${text.length} characters. Preview: ${text.substring(0, 100)}...`);
       res.json(data);
     } catch (error) {
       console.error('Server OCR Exception:', error);
@@ -337,6 +373,171 @@ async function startServer() {
     } catch (error) {
       console.error('OpenAI List Items Error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Listing failed' });
+    }
+  });
+
+  // --- OpenAI Native Menu Scan (fallback quando Gemini esaurisce quota) ---
+  app.post('/api/openai/menu-scan', async (req, res) => {
+    const { text, images, allowPizzas } = req.body;
+    const API_KEY = process.env.OPENAI_API_KEY;
+    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key.' });
+
+    const imageList: string[] = Array.isArray(images)
+      ? images
+      : req.body.image
+      ? [req.body.image]
+      : [];
+    const hasImages = imageList.length > 0;
+
+    const systemPrompt = `Sei un esperto di menu di ristoranti italiani. Il tuo compito è identificare OGNI voce di cibo e bevanda presente nel testo o nelle immagini fornite.
+REGOLE:
+- Estrai TUTTI i piatti (antipasti, primi, secondi, contorni, dessert${allowPizzas ? ', pizze' : ''}) e TUTTE le bevande (vini, birre, cocktail, spirits, acque, soft drink).
+${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esattamente come scritti nel menu.
+- Rispondi SOLO con JSON valido nel formato: {"dishes": ["nome1", "nome2", ...], "drinks": ["nome1", "nome2", ...]}
+- NON aggiungere prezzi, descrizioni o altri campi. Solo nomi come stringhe.
+- Se ci sono più immagini, analizzale TUTTE.`;
+
+    console.log(
+      `[OpenAI menu-scan] input: text=${text?.length || 0} chars, images=${imageList.length} (${imageList
+        .map((i) => Math.round(i.length / 1024) + 'KB')
+        .join(', ')})`
+    );
+    if (text) console.log(`[OpenAI menu-scan] text preview: ${text.substring(0, 200)}`);
+
+    const userContent: any[] = [
+      {
+        type: 'text',
+        text: text
+          ? `MENU:\n${text}`
+          : 'Estrai tutte le voci dal menu dalle immagini fornite.',
+      },
+    ];
+    for (const img of imageList) {
+      userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } });
+    }
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({
+          model: hasImages ? 'gpt-4o' : 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0,
+          max_tokens: 4096,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'OpenAI error');
+      const parsed = JSON.parse(result.choices[0].message.content);
+      console.log(
+        `[OpenAI menu-scan] dishes:${(parsed.dishes || []).length} drinks:${(parsed.drinks || []).length}`
+      );
+      res.json(parsed);
+    } catch (error) {
+      console.error('OpenAI menu-scan Error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Scan failed' });
+    }
+  });
+
+  // --- OpenAI Native Batch Extract (fallback quando Gemini esaurisce quota) ---
+  app.post('/api/openai/menu-extract', async (req, res) => {
+    const { text, images, itemNames, type } = req.body;
+    const API_KEY = process.env.OPENAI_API_KEY;
+    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key.' });
+
+    const imageList: string[] = Array.isArray(images)
+      ? images
+      : req.body.image
+      ? [req.body.image]
+      : [];
+
+    const isDrinks = type === 'drinks';
+    const schema = isDrinks
+      ? `{"category": "Vino Rosso|Bianco|Rosato|Bollicine|Birra|Spirits|Cocktail|Altro", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
+      : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "..."}`;
+
+    const systemPrompt = `Sei un esperto di menu di ristoranti. Estrai i dettagli delle voci indicate dal testo/immagini del menu.
+Rispondi SOLO con JSON: {"items": [${schema}, ...]}
+Estrai TUTTE le ${itemNames?.length ?? 0} voci indicate. NON saltare nessuna. Analizza tutte le immagini fornite.`;
+
+    const userContent: any[] = [
+      {
+        type: 'text',
+        text: `Voci da estrarre: ${(itemNames || []).join(', ')}\n\nCONTENUTO:\n${text || 'Vedi immagini'}`,
+      },
+    ];
+    for (const img of imageList) {
+      userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } });
+    }
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0,
+          max_tokens: 8192,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'OpenAI error');
+      const parsed = JSON.parse(result.choices[0].message.content);
+      console.log(`[OpenAI menu-extract] items:${(parsed.items || []).length}`);
+      res.json(parsed);
+    } catch (error) {
+      console.error('OpenAI menu-extract Error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Extract failed' });
+    }
+  });
+
+  // --- OpenAI Native Pairings (fallback quando Gemini esaurisce quota) ---
+  app.post('/api/openai/pairings', async (req, res) => {
+    const { restaurantInfo, dishes, drinks: drinksList } = req.body;
+    const API_KEY = process.env.OPENAI_API_KEY;
+    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key.' });
+
+    const systemPrompt = `Sei un sommelier professionista italiano. Per ogni piatto fornito, crea 2 abbinamenti usando SOLO le bevande dalla lista fornita.
+Un abbinamento per "Concordanza" (gusti simili) e uno per "Contrapposizione" (contrasto).
+Rispondi SOLO con JSON: {"pairings": [{"dish": "nome piatto", "drinks": [{"name": "nome bevanda", "category": "categoria", "price": "prezzo o null", "description": "3 righe di descrizione in italiano senza accenti (usa apostrofo: e', a', o')", "matchType": "Concordanza|Contrapposizione"}, ...]}, ...]}
+USA SOLO bevande dalla lista. Non inventare. Processa TUTTI i piatti.`;
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            {
+              role: 'user',
+              content: `Ristorante: ${restaurantInfo}\n\nPIATTI: ${JSON.stringify(dishes)}\n\nBEVANDE DISPONIBILI: ${JSON.stringify(drinksList)}`,
+            },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+          max_tokens: 8192,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'OpenAI error');
+      const parsed = JSON.parse(result.choices[0].message.content);
+      console.log(`[OpenAI pairings] count:${(parsed.pairings || []).length}`);
+      res.json(parsed);
+    } catch (error) {
+      console.error('OpenAI pairings Error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Pairings failed' });
     }
   });
 

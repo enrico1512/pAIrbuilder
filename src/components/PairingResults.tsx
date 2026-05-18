@@ -14,11 +14,11 @@ interface PairingResultsProps {
 
 const TypeIcon = ({ category }: { category: string }) => {
   const cat = category.toLowerCase();
-  if (cat.includes("vino") || cat.includes("bollicine")) return <Wine size={18} className="text-orange-500" />;
-  if (cat.includes("birra")) return <Beer size={18} className="text-orange-500" />;
-  if (cat.includes("cocktail")) return <Martini size={18} className="text-orange-500" />;
-  if (cat.includes("spirits") || cat.includes("whisky") || cat.includes("rum") || cat.includes("gin")) return <GlassWater size={18} className="text-orange-500" />;
-  return <Coffee size={18} className="text-orange-500" />;
+  if (cat.includes("vino") || cat.includes("bollicine")) return <Wine size={18} className="text-brand-accent" />;
+  if (cat.includes("birra")) return <Beer size={18} className="text-brand-accent" />;
+  if (cat.includes("cocktail")) return <Martini size={18} className="text-brand-accent" />;
+  if (cat.includes("spirits") || cat.includes("whisky") || cat.includes("rum") || cat.includes("gin")) return <GlassWater size={18} className="text-brand-accent" />;
+  return <Coffee size={18} className="text-brand-accent" />;
 };
 
 export default function PairingResults({ pairings, restaurant, onReset }: PairingResultsProps) {
@@ -150,22 +150,35 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
             className="flex flex-col md:flex-row h-full"
           >
             {/* Sidebar Navigation */}
-            <aside className="w-full md:w-80 border-r border-white/10 p-8 flex flex-col bg-brand-bg/50 overflow-y-auto no-print">
-              <div className="flex justify-between items-center mb-6">
+            <aside className="w-full md:w-1/2 border-r border-white/10 p-8 flex flex-col bg-brand-bg/50 overflow-y-auto no-print">
+              {/* Instructional header */}
+              <div className="mb-6 bg-brand-accent/10 border border-brand-accent/25 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <FlashIcon size={18} className="text-brand-accent mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-white text-[11px] font-bold uppercase tracking-wide mb-1">Abbinamenti pronti!</p>
+                    <p className="text-white/60 text-[10px] leading-relaxed">
+                      Seleziona i piatti da includere nel menu finale, poi clicca <span className="text-brand-accent font-bold">Procedi al Recap</span> in fondo alla lista.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-brand-accent text-xs uppercase tracking-[0.2em] font-bold">Piatti Abbinati</h2>
                 <button 
                   onClick={toggleSelectAll}
-                  className="text-[10px] uppercase font-bold text-white/40 hover:text-orange-500 transition-colors flex items-center gap-1"
+                  className="text-[10px] uppercase font-bold text-white/40 hover:text-brand-accent transition-colors flex items-center gap-1"
                 >
                   {selectedIndices.size === pairings.length ? 'Deseleziona' : 'Seleziona tutti'}
                 </button>
               </div>
               
-              <div className="space-y-3 flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 content-start">
                 {pairings.map((pairing, i) => (
                   <div 
                     key={i}
-                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                    className={`flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
                       activeDishIndex === i 
                       ? 'bg-white/10 border-brand-accent/50 shadow-lg' 
                       : 'border-transparent hover:bg-white/5 opacity-60 hover:opacity-100'
@@ -177,15 +190,15 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                         e.stopPropagation();
                         toggleSelection(i);
                       }}
-                      className={`shrink-0 transition-colors ${selectedIndices.has(i) ? 'text-orange-500' : 'text-white/20'}`}
+                      className={`shrink-0 mt-0.5 transition-colors ${selectedIndices.has(i) ? 'text-brand-accent' : 'text-white/20'}`}
                     >
-                      {selectedIndices.has(i) ? <CheckSquare size={16} /> : <Square size={16} />}
+                      {selectedIndices.has(i) ? <CheckSquare size={18} /> : <Square size={18} />}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[9px] opacity-40 uppercase tracking-widest font-bold truncate">
+                      <p className="text-[9px] opacity-40 uppercase tracking-widest font-bold truncate mb-1">
                         {pairing.category || `Piatto ${i + 1}`}
                       </p>
-                      <p className="font-bold truncate text-xs">{pairing.dish}</p>
+                      <p className="font-bold text-sm leading-snug text-white">{pairing.dish}</p>
                     </div>
                   </div>
                 ))}
@@ -195,7 +208,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 <button 
                   disabled={selectedIndices.size === 0}
                   onClick={() => setView('recap')}
-                  className="w-full py-3 bg-orange-500 text-brand-bg rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:grayscale disabled:scale-100"
+                  className="w-full py-3 bg-brand-accent text-brand-bg rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:grayscale disabled:scale-100"
                 >
                   Procedi al Recap ({selectedIndices.size})
                   <ArrowRight size={14} />
@@ -211,17 +224,17 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
               <div className="mb-8">
                 <h2 className="text-4xl md:text-5xl font-normal text-white uppercase mb-2 leading-none font-display tracking-tight text-balance">{activePairing.dish}</h2>
                 <div className="flex items-center gap-2 text-brand-accent italic text-lg opacity-80 mt-4">
-                  <FlashIcon size={20} className="text-orange-500" />
+                  <FlashIcon size={20} className="text-brand-accent" />
                   <span>Abbinamenti consigliati da Dioniso</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-12">
+              <div className="grid grid-cols-1 gap-8 pb-12">
                 {/* Concordanza */}
                 <div className="space-y-6">
-                  <div className="flex items-center gap-3 border-b border-orange-500/20 pb-4">
-                    <Scale className="text-orange-500" size={20} />
-                    <h3 className="text-base font-display uppercase tracking-wider text-orange-400">Concordanza</h3>
+                  <div className="flex items-center gap-3 border-b border-brand-accent/20 pb-4">
+                    <Scale className="text-brand-accent" size={20} />
+                    <h3 className="text-base font-display uppercase tracking-wider text-brand-accent">Concordanza</h3>
                   </div>
                   {activePairing.drinks.filter(d => d.matchType === 'Concordanza').map((drink, j) => (
                     <motion.div
@@ -233,14 +246,14 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
                           <TypeIcon category={drink.category} />
-                          <span className="text-[10px] bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded font-bold uppercase">
+                          <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded font-bold uppercase">
                             {drink.category}
                           </span>
                         </div>
                         {drink.price && <span className="text-[10px] font-mono opacity-50">{drink.price}</span>}
                       </div>
-                      <h4 className="text-xl font-bold text-white uppercase leading-tight">{drink.name}</h4>
-                      <p className="text-xs text-white/70 italic border-l border-orange-500/30 pl-4 py-1 leading-relaxed">
+                      <h4 className="text-xl font-display font-bold text-white uppercase leading-tight">{drink.name}</h4>
+                      <p className="text-xs text-white/70 italic border-l border-brand-accent/30 pl-4 py-1 leading-relaxed">
                         {drink.description}
                       </p>
                     </motion.div>
@@ -249,9 +262,9 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
 
                 {/* Contrasto */}
                 <div className="space-y-6">
-                  <div className="flex items-center gap-3 border-b border-orange-500/20 pb-4">
-                    <Contrast className="text-orange-500" size={20} />
-                    <h3 className="text-base font-display uppercase tracking-wider text-orange-400">Contrasto</h3>
+                  <div className="flex items-center gap-3 border-b border-brand-accent/20 pb-4">
+                    <Contrast className="text-brand-accent" size={20} />
+                    <h3 className="text-base font-display uppercase tracking-wider text-brand-accent">Contrasto</h3>
                   </div>
                   {activePairing.drinks.filter(d => d.matchType === 'Contrapposizione').map((drink, j) => (
                     <motion.div
@@ -263,14 +276,14 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
                           <TypeIcon category={drink.category} />
-                          <span className="text-[10px] bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded font-bold uppercase">
+                          <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded font-bold uppercase">
                             {drink.category}
                           </span>
                         </div>
                         {drink.price && <span className="text-[10px] font-mono opacity-50">{drink.price}</span>}
                       </div>
-                      <h4 className="text-xl font-bold text-white uppercase leading-tight">{drink.name}</h4>
-                      <p className="text-xs text-white/70 italic border-l border-orange-500/30 pl-4 py-1 leading-relaxed">
+                      <h4 className="text-xl font-display font-bold text-white uppercase leading-tight">{drink.name}</h4>
+                      <p className="text-xs text-white/70 italic border-l border-brand-accent/30 pl-4 py-1 leading-relaxed">
                         {drink.description}
                       </p>
                     </motion.div>
@@ -298,7 +311,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 </button>
                 <div>
                   <h2 className="text-2xl font-display uppercase tracking-tight text-white mb-1">Recap Abbinamenti</h2>
-                  <p className="text-[10px] uppercase tracking-widest text-orange-500 font-bold">
+                  <p className="text-[10px] uppercase tracking-widest text-brand-accent font-bold">
                     {selectedPairings.length} piatti selezionati per il menu finale
                   </p>
                 </div>
@@ -328,10 +341,10 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                       {p.drinks.map((d, di) => (
                         <div key={di} className="bg-white/5 p-4 rounded-xl border border-white/10">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[8px] uppercase tracking-widest font-black text-orange-500">{d.matchType}</span>
+                            <span className="text-[8px] uppercase tracking-widest font-black text-brand-accent">{d.matchType}</span>
                             <span className="text-[9px] opacity-40 uppercase">{d.category}</span>
                           </div>
-                          <h4 className="text-sm font-bold text-white uppercase mb-2">{d.name}</h4>
+                          <h4 className="text-sm font-display font-bold text-white uppercase mb-2">{d.name}</h4>
                           <p className="text-[10px] leading-relaxed text-white/60 italic border-l border-white/20 pl-3">
                             {d.description}
                           </p>

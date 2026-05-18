@@ -20,14 +20,28 @@ export default function MenuReview({
 }) {
   // Consolidate all results into two master lists for easy review
   const [allDishes, setAllDishes] = useState<Dish[]>(() => {
-    return [...foodPages.flatMap(p => p.dishes), ...drinkPages.flatMap(p => p.dishes)];
+    const raw = [...foodPages.flatMap(p => p.dishes), ...drinkPages.flatMap(p => p.dishes)];
+    const seen = new Set<string>();
+    return raw.filter(d => {
+      const key = (d.name || "").toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   });
   const [allDrinks, setAllDrinks] = useState<Drink[]>(() => {
     // Migration helper: map old 'type' to 'category' if needed
-    return [...foodPages.flatMap(p => p.drinks), ...drinkPages.flatMap(p => p.drinks)].map(d => ({
+    const raw = [...foodPages.flatMap(p => p.drinks), ...drinkPages.flatMap(p => p.drinks)].map(d => ({
       ...d,
       category: d.category || (d as any).type || "Altro"
     }));
+    const seen = new Set<string>();
+    return raw.filter(d => {
+      const key = (d.product || "").toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   });
 
   const [analysis, setAnalysis] = useState<{ stats: string[]; strategy: string } | null>(null);
@@ -35,7 +49,7 @@ export default function MenuReview({
 
   const [foodPage, setFoodPage] = useState(1);
   const [drinkPage, setDrinkPage] = useState(1);
-  const ITEMS_PER_PAGE = 25;
+  const ITEMS_PER_PAGE = 25; // Items visible per page
 
   // Sorting logic based on user request: "order items follow categories"
   const sortedDishes = [...allDishes].sort((a, b) => 
@@ -137,7 +151,7 @@ export default function MenuReview({
       className="max-w-7xl mx-auto space-y-8"
     >
       <div className="text-center space-y-2">
-        <div className="flex items-center justify-center gap-2 text-orange-500 animate-pulse mb-2">
+        <div className="flex items-center justify-center gap-2 text-brand-accent animate-pulse mb-2">
           <BrainCircuit size={18} />
           <span className="text-[10px] uppercase font-bold tracking-widest">Dioniso Learning Mode Active</span>
         </div>
@@ -152,12 +166,12 @@ export default function MenuReview({
         className="glass-panel p-8 border-brand-accent/30 bg-brand-accent/5 relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 p-4 opacity-10">
-          <BarChart3 size={120} className="text-orange-500" />
+          <BarChart3 size={120} className="text-brand-accent" />
         </div>
         
         <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-10 items-center">
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-orange-500">
+            <div className="flex items-center gap-2 text-brand-accent">
               <TrendingUp size={20} />
               <h3 className="text-xs font-bold uppercase tracking-widest">Analisi della tua Carta</h3>
             </div>
@@ -169,7 +183,7 @@ export default function MenuReview({
                 </div>
               ) : analysis?.stats.map((stat, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
+                  <div className="w-1.5 h-1.5 bg-brand-accent rounded-full shadow-[0_0_8px_rgba(248,188,180,0.5)]"></div>
                   <span className="text-sm font-medium tracking-tight text-white/80">{stat}</span>
                 </div>
               ))}
@@ -208,7 +222,7 @@ export default function MenuReview({
               </div>
               <button 
                 onClick={addManualDish}
-                className="flex items-center gap-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 px-3 py-1.5 rounded-lg border border-orange-500/30 transition-all text-[10px] uppercase font-bold tracking-widest"
+                className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest"
               >
                 <Plus size={14} />
                 Aggiungi
@@ -228,7 +242,7 @@ export default function MenuReview({
                       {Array.from(new Set(paginatedDishes.map(d => d.category || "VARIE"))).map(category => (
                         <React.Fragment key={category}>
                           <tr className="bg-white/10" key={`header-${category}`}>
-                            <td colSpan={3} className="px-4 py-2 text-[10px] uppercase tracking-widest font-black text-orange-500">
+                            <td colSpan={3} className="px-4 py-2 text-[10px] uppercase tracking-widest font-black text-brand-accent">
                               {category}
                             </td>
                           </tr>
@@ -279,28 +293,26 @@ export default function MenuReview({
               </table>
             </div>
 
-            {/* Food Pagination */}
-            {totalFoodPages > 1 && (
-              <div className="p-4 border-t border-white/10 bg-white/5 flex items-center justify-between">
-                <button 
-                  onClick={() => setFoodPage(p => Math.max(1, p - 1))}
-                  disabled={foodPage === 1}
-                  className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 hover:text-orange-500 transition-colors"
-                >
-                  <ChevronLeft size={14} /> Precedente
-                </button>
-                <span className="text-[10px] uppercase tracking-widest font-bold opacity-40">
-                  Pagina {foodPage} di {totalFoodPages}
-                </span>
-                <button 
-                  onClick={() => setFoodPage(p => Math.min(totalFoodPages, p + 1))}
-                  disabled={foodPage === totalFoodPages}
-                  className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 hover:text-orange-500 transition-colors"
-                >
-                  Successiva <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
+            {/* Food Pagination — visible only when more than ITEMS_PER_PAGE items */}
+            {totalFoodPages > 1 && <div className="p-3 border-t border-white/10 bg-white/5 flex items-center justify-between gap-2 shrink-0">
+              <button
+                onClick={() => setFoodPage(p => Math.max(1, p - 1))}
+                disabled={foodPage === 1}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
+              >
+                <ChevronLeft size={13} /> Prec
+              </button>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 text-center">
+                {sortedDishes.length === 0 ? "0 piatti" : `${(foodPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(foodPage * ITEMS_PER_PAGE, sortedDishes.length)} di ${sortedDishes.length}`}
+              </span>
+              <button
+                onClick={() => setFoodPage(p => Math.min(totalFoodPages, p + 1))}
+                disabled={foodPage === totalFoodPages}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
+              >
+                Succ <ChevronRight size={13} />
+              </button>
+            </div>}
           </div>
         </div>
 
@@ -317,7 +329,7 @@ export default function MenuReview({
               </div>
               <button 
                 onClick={addManualDrink}
-                className="flex items-center gap-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 px-3 py-1.5 rounded-lg border border-orange-500/30 transition-all text-[10px] uppercase font-bold tracking-widest"
+                className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest"
               >
                 <Plus size={14} />
                 Aggiungi
@@ -345,7 +357,7 @@ export default function MenuReview({
                             contentEditable 
                             suppressContentEditableWarning
                             onBlur={(e) => updateDrink(originalIndex, 'category', e.currentTarget.textContent || "")}
-                            className="text-[10px] uppercase text-orange-500 font-bold block focus:outline-none"
+                            className="text-[10px] uppercase text-brand-accent font-bold block focus:outline-none"
                           >
                             {getDrinkDisplayLabel(drink.category)}
                           </span>
@@ -396,8 +408,8 @@ export default function MenuReview({
                             onClick={() => togglePriority(originalIndex)}
                             className={`w-6 h-6 rounded border flex items-center justify-center transition-all ${
                               drink.isPriority 
-                              ? 'bg-orange-500 border-orange-500 text-brand-bg' 
-                              : 'border-white/20 hover:border-orange-500'
+                              ? 'bg-brand-accent border-brand-accent text-brand-bg' 
+                              : 'border-white/20 hover:border-brand-accent'
                             }`}
                           >
                             {drink.isPriority && <Check size={14} strokeWidth={3} />}
@@ -417,28 +429,26 @@ export default function MenuReview({
               </table>
             </div>
 
-            {/* Drink Pagination */}
-            {totalDrinkPages > 1 && (
-              <div className="p-4 border-t border-white/10 bg-white/5 flex items-center justify-between">
-                <button 
-                  onClick={() => setDrinkPage(p => Math.max(1, p - 1))}
-                  disabled={drinkPage === 1}
-                  className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 hover:text-orange-500 transition-colors"
-                >
-                  <ChevronLeft size={14} /> Precedente
-                </button>
-                <span className="text-[10px] uppercase tracking-widest font-bold opacity-40">
-                  Pagina {drinkPage} di {totalDrinkPages}
-                </span>
-                <button 
-                  onClick={() => setDrinkPage(p => Math.min(totalDrinkPages, p + 1))}
-                  disabled={drinkPage === totalDrinkPages}
-                  className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 hover:text-orange-500 transition-colors"
-                >
-                  Successiva <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
+            {/* Drink Pagination — visible only when more than ITEMS_PER_PAGE items */}
+            {totalDrinkPages > 1 && <div className="p-3 border-t border-white/10 bg-white/5 flex items-center justify-between gap-2 shrink-0">
+              <button
+                onClick={() => setDrinkPage(p => Math.max(1, p - 1))}
+                disabled={drinkPage === 1}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
+              >
+                <ChevronLeft size={13} /> Prec
+              </button>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 text-center">
+                {`${(drinkPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(drinkPage * ITEMS_PER_PAGE, sortedDrinks.length)} di ${sortedDrinks.length}`}
+              </span>
+              <button
+                onClick={() => setDrinkPage(p => Math.min(totalDrinkPages, p + 1))}
+                disabled={drinkPage === totalDrinkPages}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
+              >
+                Succ <ChevronRight size={13} />
+              </button>
+            </div>}
           </div>
         </div>
       </div>

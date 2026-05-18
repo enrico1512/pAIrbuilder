@@ -429,7 +429,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col selection:bg-brand-accent selection:text-brand-bg">
+    <div className="h-screen flex flex-col overflow-hidden selection:bg-brand-accent selection:text-brand-bg">
       {/* Header */}
       <header className="grid grid-cols-3 items-center px-6 md:px-10 py-6 border-b border-white/10 z-10 bg-brand-bg/80 backdrop-blur-sm sticky top-0">
         <div className="flex items-center gap-4">
@@ -447,7 +447,7 @@ export default function App() {
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-colors border border-white/10 outline-none">
-                <User size={18} className="text-orange-500" />
+                <User size={18} className="text-brand-accent" />
                 <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">Menu</span>
                 <ChevronDown size={14} className="opacity-50" />
               </button>
@@ -462,26 +462,26 @@ export default function App() {
                   onClick={() => { setInfoMode("about-us"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
-                  <BrainCircuit size={16} className="text-orange-500" />
+                  <BrainCircuit size={16} className="text-brand-accent" />
                   <span>Chi siamo</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 
                   onClick={() => { setInfoMode("how-it-works"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
-                  <FlashIcon size={16} className="text-orange-500" />
+                  <FlashIcon size={16} className="text-brand-accent" />
                   <span>Come funziona</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 
                   onClick={() => { setInfoMode("contact"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
-                  <Mail size={16} className="text-orange-500" />
+                  <Mail size={16} className="text-brand-accent" />
                   <span>Contatti</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
                 <DropdownMenu.Item className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors">
-                  <Settings size={16} className="text-orange-500" />
+                  <Settings size={16} className="text-brand-accent" />
                   <span>Profilo</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg outline-none cursor-pointer transition-colors mt-1">
@@ -676,7 +676,7 @@ export default function App() {
                 className="max-w-4xl mx-auto space-y-8 py-10"
               >
                 <div className="glass-panel p-10 space-y-8 text-center border-brand-accent/30 bg-brand-accent/5">
-                  <div className="mx-auto w-20 h-20 flex items-center justify-center text-orange-500 mb-6">
+                  <div className="mx-auto w-20 h-20 flex items-center justify-center text-brand-accent mb-6">
                     <FlashIcon size={64} />
                   </div>
                   <h2 className="text-4xl font-display uppercase tracking-tight font-normal">Estrazione parziale completata</h2>
@@ -760,13 +760,16 @@ export default function App() {
           </div>
           {configStatus && (
             <div className="flex items-center gap-2 group cursor-help relative">
-              {configStatus.visionApiKeyPresent ? (
+              {configStatus.status === "Full" ? (
+                <CheckCircle2 size={12} className="text-green-500" />
+              ) : configStatus.status === "Standard" ? (
                 <CheckCircle2 size={12} className="text-green-500" />
               ) : (
-                <AlertCircle size={12} className="text-green-500 animate-pulse" />
+                <CheckCircle2 size={12} className="text-green-500" />
               )}
-              <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">Vision OCR: {configStatus.status}</span>
-              
+              <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
+                AI Mode: {configStatus.status}
+              </span>
               <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
                 {configStatus.message}
               </div>

@@ -6,12 +6,37 @@ interface OnboardingProps {
   onNext: (data: { name: string; type: string; email: string; phone: string; logo: string | null }) => void;
 }
 
+const STORAGE_KEY = "pairbuilder_restaurant";
+
 export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [logo, setLogo] = useState<string | null>(null);
+  const saved = (() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+  })();
+
+  const [name, setName] = useState(saved.name || "");
+  const [type, setType] = useState(saved.type || "");
+  const [email, setEmail] = useState(saved.email || "");
+  const [phone, setPhone] = useState(saved.phone || "");
+  const [logo, setLogo] = useState<string | null>(saved.logo || null);
+
+  // Track whether each field has been explicitly touched for autocomplete trigger
+  const [nameFocused, setNameFocused] = useState(false);
+  const savedName = saved.name || "";
+
+  const handleNameFocus = () => {
+    if (!nameFocused && name) {
+      // Temporarily clear the field so Chrome shows its saved autocomplete suggestions
+      setName("");
+      setNameFocused(true);
+    }
+  };
+
+  const handleNameBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // If user left the field empty and there was a saved value, restore it
+    if (!e.target.value && savedName) {
+      setName(savedName);
+    }
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -19,6 +44,13 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
       reader.onload = (ev) => setLogo(ev.target?.result as string);
       reader.readAsDataURL(e.target.files[0]);
     }
+  };
+
+  const handleSubmit = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ name, type, email, phone, logo }));
+    } catch { /* ignore */ }
+    onNext({ name, type, email, phone, logo });
   };
 
   return (
@@ -37,7 +69,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
           {logo ? (
             <img src={logo} alt="Logo" className="w-full h-full object-cover" />
           ) : (
-            <Camera className="text-white/20 group-hover:text-orange-500 transition-colors" size={40} />
+            <Camera className="text-white/20 group-hover:text-brand-accent transition-colors" size={40} />
           )}
           <input
             type="file"
@@ -49,23 +81,35 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
         <p className="text-xs uppercase tracking-widest text-white/40 text-center">Carica il Logo<br />(.jpg, .PDF, .svg, .JPEG)</p>
       </div>
 
-      <div className="space-y-6">
+      <form
+        autoComplete="on"
+        onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+        className="space-y-6"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Nome Locale</label>
+            <label htmlFor="org-name" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Nome Locale</label>
             <input
+              id="org-name"
               type="text"
+              name="organization"
+              autoComplete="organization"
               value={name}
+              onFocus={handleNameFocus}
+              onBlur={handleNameBlur}
               onChange={(e) => setName(e.target.value)}
-              placeholder="es. L'OSTERIA MODERNA"
+              placeholder={nameFocused && !name && savedName ? savedName : "es. L'OSTERIA MODERNA"}
               className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Tipo di Cucina</label>
+            <label htmlFor="cuisine-type" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Tipo di Cucina</label>
             <input
+              id="cuisine-type"
               type="text"
+              name="cuisine-type"
+              autoComplete="off"
               value={type}
               onChange={(e) => setType(e.target.value)}
               placeholder="es. TRADIZIONE ITALIANA"
@@ -76,9 +120,12 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Email</label>
+            <label htmlFor="email" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Email</label>
             <input
+              id="email"
               type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="info@ristorante.it"
@@ -87,9 +134,12 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Telefono</label>
+            <label htmlFor="tel" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Telefono</label>
             <input
+              id="tel"
               type="tel"
+              name="tel"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+39 012 345678"
@@ -99,13 +149,13 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
         </div>
 
         <button
-          onClick={() => onNext({ name, type, email, phone, logo })}
+          type="submit"
           disabled={!name || !type}
           className="btn-primary w-full mt-4"
         >
           carica il tuo menu
         </button>
-      </div>
+      </form>
     </motion.div>
   );
 }

@@ -64,14 +64,14 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
         <div className={`glass-panel p-8 space-y-4 transition-all duration-500 ${menuFiles.length > 0 ? 'ring-2 ring-brand-accent/30 bg-brand-accent/5' : ''}`} data-testid="menu-upload">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Utensils className={menuFiles.length > 0 ? 'text-orange-500' : 'text-white/40'} />
+              <Utensils className={menuFiles.length > 0 ? 'text-brand-accent' : 'text-white/40'} />
               <div className="flex items-center gap-2">
                 <h3 className="text-2xl">MENU PIATTI</h3>
                 {menuFiles.length > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="text-orange-500 p-1"
+                    className="text-brand-accent p-1"
                   >
                     <Check size={12} strokeWidth={4} />
                   </motion.div>
@@ -106,10 +106,10 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
                 animate={{ opacity: 1, y: 0 }}
                 className="relative z-0"
               >
-                <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center text-orange-500">
+                <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center text-brand-accent">
                   <Check size={32} strokeWidth={3} />
                 </div>
-                <p className="text-sm font-bold text-orange-500 uppercase">File caricati con successo</p>
+                <p className="text-sm font-bold text-brand-accent uppercase">File caricati con successo</p>
                 <p className="text-[10px] opacity-60 uppercase tracking-tighter mt-1">Clicca o trascina per aggiungere altri menu</p>
               </motion.div>
             ) : (
@@ -157,14 +157,14 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
         <div className={`glass-panel p-8 space-y-4 transition-all duration-500 ${drinksFiles.length > 0 ? 'ring-2 ring-brand-accent/30 bg-brand-accent/5' : ''}`} data-testid="drinks-upload">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Wine className={drinksFiles.length > 0 ? 'text-orange-500' : 'text-white/40'} />
+              <Wine className={drinksFiles.length > 0 ? 'text-brand-accent' : 'text-white/40'} />
               <div className="flex items-center gap-2">
                 <h3 className="text-2xl">CARTA DRINKS</h3>
                 {drinksFiles.length > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="text-orange-500 p-1"
+                    className="text-brand-accent p-1"
                   >
                     <Check size={12} strokeWidth={4} />
                   </motion.div>
@@ -199,10 +199,10 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
                 animate={{ opacity: 1, y: 0 }}
                 className="relative z-0"
               >
-                <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center text-orange-500">
+                <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center text-brand-accent">
                   <Check size={32} strokeWidth={3} />
                 </div>
-                <p className="text-sm font-bold text-orange-500 uppercase">Drinks caricati con successo</p>
+                <p className="text-sm font-bold text-brand-accent uppercase">Drinks caricati con successo</p>
                 <p className="text-[10px] opacity-60 uppercase tracking-tighter mt-1">Clicca o trascina per aggiungere altri drinks</p>
               </motion.div>
             ) : (

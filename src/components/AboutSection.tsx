@@ -52,7 +52,7 @@ function HowItWorksContent() {
         <div className="glass-panel p-8 md:p-12 bg-brand-accent/5 border border-brand-accent/20 rounded-[2rem]">
           <div className="grid md:grid-cols-2 gap-12">
             <div className="space-y-6">
-              <div className="flex items-center gap-3 text-orange-500">
+              <div className="flex items-center gap-3 text-brand-accent">
                 <FlashIcon size={24} />
                 <h2 className="text-3xl font-display uppercase text-white font-normal tracking-tight">Equilibrio Molecolare</h2>
               </div>
@@ -71,7 +71,7 @@ function HowItWorksContent() {
                 <ul className="space-y-6 list-none">
                   <li className="flex gap-4">
                     <div className="flex items-center justify-center shrink-0">
-                      <Scale className="text-orange-500" size={24} />
+                      <Scale className="text-brand-accent" size={24} />
                     </div>
                     <div>
                       <p className="font-bold text-white uppercase text-xs tracking-wider mb-1">CONCORDANZA</p>
@@ -80,7 +80,7 @@ function HowItWorksContent() {
                   </li>
                   <li className="flex gap-4">
                     <div className="flex items-center justify-center shrink-0">
-                      <Contrast className="text-orange-500" size={24} />
+                      <Contrast className="text-brand-accent" size={24} />
                     </div>
                     <div>
                       <p className="font-bold text-white uppercase text-xs tracking-wider mb-1">CONTRASTO</p>
@@ -95,7 +95,7 @@ function HowItWorksContent() {
 
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <div className="flex items-center gap-3 text-orange-500">
+            <div className="flex items-center gap-3 text-brand-accent">
               <Utensils size={24} />
               <h2 className="text-2xl font-display uppercase text-white font-normal tracking-tight">Output Professionale</h2>
             </div>
@@ -115,7 +115,7 @@ function HowItWorksContent() {
           </div>
 
           <div className="space-y-6">
-            <div className="flex items-center gap-3 text-orange-500">
+            <div className="flex items-center gap-3 text-brand-accent">
               <Sparkles size={24} />
               <h2 className="text-2xl font-display uppercase text-white font-normal tracking-tight">Priority Intelligence</h2>
             </div>
@@ -180,7 +180,7 @@ function AboutUsContent() {
 
       <section className="grid md:grid-cols-2 gap-12 pt-8">
         <div className="space-y-6">
-          <div className="flex items-center gap-3 text-orange-500">
+          <div className="flex items-center gap-3 text-brand-accent">
             <BrainCircuit size={24} />
             <h2 className="text-2xl font-display uppercase text-white font-normal tracking-tight">Oltre il Codice</h2>
           </div>
@@ -195,7 +195,7 @@ function AboutUsContent() {
         </div>
 
         <div className="space-y-6">
-          <div className="flex items-center gap-3 text-orange-500">
+          <div className="flex items-center gap-3 text-brand-accent">
             <Users size={24} />
             <h2 className="text-2xl font-display uppercase text-white font-normal tracking-tight">Il Nostro Team</h2>
           </div>
@@ -211,7 +211,7 @@ function AboutUsContent() {
       </section>
 
       <section className="space-y-8 mt-12">
-        <div className="flex items-center gap-3 text-orange-500">
+        <div className="flex items-center gap-3 text-brand-accent">
           <Globe size={24} />
           <h2 className="text-2xl font-display uppercase text-white font-normal tracking-tight">Digital F&B DNA</h2>
         </div>
@@ -302,7 +302,7 @@ function ContactContent() {
             </div>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="text-orange-500">
+                <div className="text-brand-accent">
                   <Mail size={32} />
                 </div>
                 <div className="flex flex-col">
@@ -315,7 +315,7 @@ function ContactContent() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-orange-500">
+                <div className="text-brand-accent">
                   <MessageCircle size={32} />
                 </div>
                 <a href="https://wa.me/393282694406" target="_blank" rel="noopener noreferrer" className="text-xl font-medium hover:text-green-500 transition-colors">
@@ -327,14 +327,14 @@ function ContactContent() {
 
           <div className="space-y-6">
             <div className="flex items-center gap-4 border-b border-white/5 pb-6">
-              <div><MessageSquare size={32} className="text-orange-500" /></div>
+              <div><MessageSquare size={32} className="text-brand-accent" /></div>
               <div>
                 <p className="text-xs uppercase opacity-40 font-bold">Feedback</p>
                 <p className="text-sm">I tuoi suggerimenti guidano la nostra AI</p>
               </div>
             </div>
             <div className="flex items-center gap-4 border-b border-white/5 pb-6">
-              <div><BrainCircuit size={32} className="text-orange-500" /></div>
+              <div><BrainCircuit size={32} className="text-brand-accent" /></div>
               <div>
                 <p className="text-xs uppercase opacity-40 font-bold">Sviluppo</p>
                 <p className="text-sm">Custom API per grandi gruppi F&B</p>
