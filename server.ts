@@ -389,9 +389,10 @@ async function startServer() {
       : [];
     const hasImages = imageList.length > 0;
 
-    const systemPrompt = `Sei un esperto di menu di ristoranti italiani. Il tuo compito è identificare OGNI voce di cibo e bevanda presente nel testo o nelle immagini fornite.
+    const systemPrompt = `Sei un esperto di menu di ristoranti italiani. Il tuo compito è identificare OGNI voce di cibo e OGNI VINO presente nel testo o nelle immagini fornite.
 REGOLE:
-- Estrai TUTTI i piatti (antipasti, primi, secondi, contorni, dessert${allowPizzas ? ', pizze' : ''}) e TUTTE le bevande (vini, birre, cocktail, spirits, acque, soft drink).
+- Estrai TUTTI i piatti (antipasti, primi, secondi, contorni, dessert${allowPizzas ? ', pizze' : ''}).
+- SOLO VINI per la lista "drinks": vini rossi, bianchi, rosati, bollicine/spumanti/champagne/prosecco/franciacorta, vini dolci/passiti/moscato, vini liquorosi (marsala, porto). IGNORA COMPLETAMENTE birre, cocktail, distillati (whisky, gin, rum, vodka, tequila, grappa), liquori, amari, digestivi, aperitivi non a base vino (aperol, campari), soft drink, succhi, acqua, caffè, tè. Se una sezione si chiama "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", SALTALA INTERAMENTE.
 ${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esattamente come scritti nel menu.
 - Rispondi SOLO con JSON valido nel formato: {"dishes": ["nome1", "nome2", ...], "drinks": ["nome1", "nome2", ...]}
 - NON aggiungere prezzi, descrizioni o altri campi. Solo nomi come stringhe.
@@ -458,12 +459,12 @@ ${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esatta
 
     const isDrinks = type === 'drinks';
     const schema = isDrinks
-      ? `{"category": "Vino Rosso|Bianco|Rosato|Bollicine|Birra|Spirits|Cocktail|Altro", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
+      ? `{"category": "Vino Rosso|Vino Bianco|Vino Rosato|Bollicine|Vino Dolce", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
       : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "..."}`;
 
     const systemPrompt = `Sei un esperto di menu di ristoranti. Estrai i dettagli delle voci indicate dal testo/immagini del menu.
 Rispondi SOLO con JSON: {"items": [${schema}, ...]}
-Estrai TUTTE le ${itemNames?.length ?? 0} voci indicate. NON saltare nessuna. Analizza tutte le immagini fornite.`;
+${isDrinks ? 'SOLO VINI: la lista "items" deve contenere ESCLUSIVAMENTE vini (categorie ammesse: Vino Rosso, Vino Bianco, Vino Rosato, Bollicine, Vino Dolce). Se una voce indicata NON e\' un vino (birra, cocktail, distillato, liquore, amaro, soft drink, ecc.), SALTALA e non includerla nell\'output.\n' : ''}Estrai TUTTE le ${itemNames?.length ?? 0} voci indicate (saltando solo quelle non valide come da regole sopra). NON saltare nessuna voce valida. Analizza tutte le immagini fornite.`;
 
     const userContent: any[] = [
       {

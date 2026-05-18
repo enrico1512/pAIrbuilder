@@ -13,6 +13,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
   const [drinksFiles, setDrinksFiles] = useState<File[]>([]);
   const [showLearningInfo, setShowLearningInfo] = useState(false);
   const [learnedCount, setLearnedCount] = useState({ dishes: 0, drinks: 0 });
+  const [dragOver, setDragOver] = useState<'menu' | 'drinks' | null>(null);
 
   useEffect(() => {
     const dishExamples = learningService.getExamples('dish', 50);
@@ -33,6 +34,29 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
       if (type === 'menu') setMenuFiles([...menuFiles, ...newFiles]);
       else setDrinksFiles([...drinksFiles, ...newFiles]);
     }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, type: 'menu' | 'drinks') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+    const dropped = Array.from(e.dataTransfer?.files || []);
+    if (dropped.length === 0) return;
+    if (type === 'menu') setMenuFiles([...menuFiles, ...dropped]);
+    else setDrinksFiles([...drinksFiles, ...dropped]);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, type: 'menu' | 'drinks') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    if (dragOver !== type) setDragOver(type);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
   };
 
   const removeFile = (index: number, type: 'menu' | 'drinks') => {
@@ -87,9 +111,16 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               </button>
             )}
           </div>
-          <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 relative ${
-            menuFiles.length > 0 
-              ? 'border-brand-accent bg-brand-accent/5 shadow-[inset_0_0_20px_rgba(180,90,255,0.1)]' 
+          <div
+            onDragOver={(e) => handleDragOver(e, 'menu')}
+            onDragEnter={(e) => handleDragOver(e, 'menu')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'menu')}
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 relative ${
+            menuFiles.length > 0
+              ? 'border-brand-accent bg-brand-accent/5 shadow-[inset_0_0_20px_rgba(180,90,255,0.1)]'
+              : dragOver === 'menu'
+              ? 'border-brand-accent bg-brand-accent/10'
               : 'border-white/20 hover:border-brand-accent/50'
           }`}>
             <input
@@ -180,9 +211,16 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               </button>
             )}
           </div>
-          <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 relative ${
-            drinksFiles.length > 0 
-              ? 'border-brand-accent bg-brand-accent/5 shadow-[inset_0_0_20px_rgba(180,90,255,0.1)]' 
+          <div
+            onDragOver={(e) => handleDragOver(e, 'drinks')}
+            onDragEnter={(e) => handleDragOver(e, 'drinks')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'drinks')}
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 relative ${
+            drinksFiles.length > 0
+              ? 'border-brand-accent bg-brand-accent/5 shadow-[inset_0_0_20px_rgba(180,90,255,0.1)]'
+              : dragOver === 'drinks'
+              ? 'border-brand-accent bg-brand-accent/10'
               : 'border-white/20 hover:border-brand-accent/50'
           }`}>
             <input

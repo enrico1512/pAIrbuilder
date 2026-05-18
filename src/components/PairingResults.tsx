@@ -52,40 +52,18 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 20;
-    let cursorY = 20;
+    let cursorY = 30;
 
-    // --- Header: Restaurant Logo ---
-    if (restaurant?.logo) {
-      try {
-        const format = restaurant.logo.split(';')[0].split('/')[1]?.toUpperCase() || 'JPEG';
-        doc.addImage(restaurant.logo, format === 'SVG+XML' ? 'PNG' : format, margin, cursorY, 20, 20);
-        cursorY += 5;
-      } catch (e) {
-        console.error("Could not add logo to PDF:", e);
-      }
-    }
-
-    // --- Header: Restaurant Info ---
+    // --- Centered Title ---
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(restaurant?.name?.toUpperCase() || "IL TUO RISTORANTE", margin + (restaurant?.logo ? 25 : 0), cursorY + 10);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(`${restaurant?.type || ""} | ${restaurant?.email || ""} | ${restaurant?.phone || ""}`, margin + (restaurant?.logo ? 25 : 0), cursorY + 15);
-    
-    cursorY += 25;
+    doc.setFontSize(20);
+    doc.setTextColor(0);
+    doc.text("Menu abbinamenti consigliati", pageWidth / 2, cursorY, { align: "center" });
+    cursorY += 8;
 
-    // --- Title ---
-    doc.setDrawColor(200, 160, 100); 
+    doc.setDrawColor(200, 160, 100);
     doc.setLineWidth(0.5);
     doc.line(margin, cursorY, pageWidth - margin, cursorY);
-    cursorY += 10;
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.text("MENU ABBINAMENTI DIONISO", margin, cursorY);
     cursorY += 10;
 
     // --- Selected Pairings ---
@@ -133,7 +111,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
       doc.text("Generato con Dioniso Sommelier AI", margin, pageHeight - 10);
     }
 
-    doc.save(`Menu_Abbinato_${restaurant?.name?.replace(/\s+/g, '_') || 'Ristorante'}.pdf`);
+    doc.save("Menu_abbinamenti_consigliati.pdf");
   };
 
   if (!activePairing && view === 'dashboard') return null;
@@ -252,7 +230,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                         </div>
                         {drink.price && <span className="text-[10px] font-mono opacity-50">{drink.price}</span>}
                       </div>
-                      <h4 className="text-xl font-display font-bold text-white uppercase leading-tight">{drink.name}</h4>
+                      <h4 className="text-2xl font-display font-normal text-white uppercase leading-none tracking-tight text-balance">{drink.name}</h4>
                       <p className="text-xs text-white/70 italic border-l border-brand-accent/30 pl-4 py-1 leading-relaxed">
                         {drink.description}
                       </p>
@@ -282,7 +260,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                         </div>
                         {drink.price && <span className="text-[10px] font-mono opacity-50">{drink.price}</span>}
                       </div>
-                      <h4 className="text-xl font-display font-bold text-white uppercase leading-tight">{drink.name}</h4>
+                      <h4 className="text-2xl font-display font-normal text-white uppercase leading-none tracking-tight text-balance">{drink.name}</h4>
                       <p className="text-xs text-white/70 italic border-l border-brand-accent/30 pl-4 py-1 leading-relaxed">
                         {drink.description}
                       </p>
@@ -344,7 +322,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                             <span className="text-[8px] uppercase tracking-widest font-black text-brand-accent">{d.matchType}</span>
                             <span className="text-[9px] opacity-40 uppercase">{d.category}</span>
                           </div>
-                          <h4 className="text-sm font-display font-bold text-white uppercase mb-2">{d.name}</h4>
+                          <h4 className="text-lg font-display font-normal text-white uppercase tracking-tight mb-2">{d.name}</h4>
                           <p className="text-[10px] leading-relaxed text-white/60 italic border-l border-white/20 pl-3">
                             {d.description}
                           </p>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight, Check, BrainCircuit, Edit2, BarChart3, TrendingUp, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, BrainCircuit, Edit2, BarChart3, TrendingUp, Plus, X } from "lucide-react";
 import { type Dish, type Drink, analyzeDrinksWithMenu } from "../lib/gemini";
 
 interface ReviewProps {
@@ -46,6 +46,10 @@ export default function MenuReview({
 
   const [analysis, setAnalysis] = useState<{ stats: string[]; strategy: string } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Draft state for manual additions — only confirmed entries become part of the master list
+  const [draftDish, setDraftDish] = useState<Dish | null>(null);
+  const [draftDrink, setDraftDrink] = useState<Drink | null>(null);
 
   const [foodPage, setFoodPage] = useState(1);
   const [drinkPage, setDrinkPage] = useState(1);
@@ -117,30 +121,86 @@ export default function MenuReview({
     setAllDrinks(newDrinks);
   };
 
-  const addManualDish = () => {
-    const newDish: Dish = {
-      name: "Nuovo Piatto",
+  const startDraftDish = () => {
+    if (draftDish) return; // already drafting
+    setDraftDish({
+      name: "",
       category: "ANTIPASTI",
-      fullIngredients: "Inserisci ingredienti...",
-    };
-    setAllDishes(prev => [newDish, ...prev]);
+      fullIngredients: "",
+    });
     setFoodPage(1);
   };
 
-  const addManualDrink = () => {
-    const newDrink: Drink = {
-      product: "Nuovo Drink",
-      producer: "Produttore",
-      category: "Vino",
-      vintage: "-",
-      price: "-",
-      isPriority: false,
+  const updateDraftDish = (field: keyof Dish, value: string) => {
+    setDraftDish(prev => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const confirmDraftDish = () => {
+    if (!draftDish) return;
+    if (!draftDish.name.trim()) {
+      alert("Inserisci il nome del piatto prima di confermare.");
+      return;
+    }
+    const toAdd: Dish = {
+      name: draftDish.name.trim(),
+      category: (draftDish.category || "VARIE").trim().toUpperCase(),
+      fullIngredients: (draftDish.fullIngredients || "").trim(),
     };
-    setAllDrinks(prev => [newDrink, ...prev]);
+    setAllDishes(prev => [toAdd, ...prev]);
+    setDraftDish(null);
+  };
+
+  const cancelDraftDish = () => setDraftDish(null);
+
+  const startDraftDrink = () => {
+    if (draftDrink) return;
+    setDraftDrink({
+      product: "",
+      producer: "",
+      category: "Vino Rosso",
+      vintage: "",
+      price: "",
+      isPriority: false,
+    });
     setDrinkPage(1);
   };
 
+  const updateDraftDrink = (field: keyof Drink, value: string) => {
+    setDraftDrink(prev => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const confirmDraftDrink = () => {
+    if (!draftDrink) return;
+    if (!draftDrink.product.trim()) {
+      alert("Inserisci il nome del vino (Prodotto) prima di confermare.");
+      return;
+    }
+    const toAdd: Drink = {
+      product: draftDrink.product.trim(),
+      producer: (draftDrink.producer || "").trim(),
+      category: (draftDrink.category || "Vino Rosso").trim(),
+      vintage: (draftDrink.vintage || "").trim(),
+      price: (draftDrink.price || "").trim(),
+      isPriority: false,
+    };
+    setAllDrinks(prev => [toAdd, ...prev]);
+    setDraftDrink(null);
+  };
+
+  const cancelDraftDrink = () => setDraftDrink(null);
+
   const finalize = () => {
+    if (draftDish || draftDrink) {
+      const pending: string[] = [];
+      if (draftDish) pending.push("un piatto");
+      if (draftDrink) pending.push("un vino");
+      const ok = confirm(
+        `Hai ${pending.join(" e ")} in bozza non ancora confermati. Se procedi verranno scartati. Vuoi continuare comunque?`
+      );
+      if (!ok) return;
+      setDraftDish(null);
+      setDraftDrink(null);
+    }
     onConfirm(allDishes, allDrinks);
   };
 
@@ -220,9 +280,10 @@ export default function MenuReview({
                 </h3>
                 <p className="text-[10px] text-white mt-1 uppercase">controlla l'esattezza dei dati, puoi modificare o aggiungere piatti/drinks mancanti</p>
               </div>
-              <button 
-                onClick={addManualDish}
-                className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest"
+              <button
+                onClick={startDraftDish}
+                disabled={!!draftDish}
+                className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Plus size={14} />
                 Aggiungi
@@ -239,6 +300,63 @@ export default function MenuReview({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
+                      {draftDish && (
+                        <React.Fragment key="draft-dish">
+                          <tr className="bg-brand-accent/10 border-l-4 border-brand-accent">
+                            <td className="px-4 pt-4 pb-1 align-top">
+                              <input
+                                type="text"
+                                value={draftDish.category || ""}
+                                onChange={(e) => updateDraftDish('category', e.target.value)}
+                                placeholder="Categoria"
+                                className="w-full text-[10px] uppercase bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
+                              />
+                            </td>
+                            <td className="px-4 pt-4 pb-1 align-top">
+                              <input
+                                type="text"
+                                value={draftDish.name || ""}
+                                onChange={(e) => updateDraftDish('name', e.target.value)}
+                                placeholder="Nome del piatto*"
+                                autoFocus
+                                className="w-full font-bold uppercase tracking-tight text-sm bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
+                              />
+                            </td>
+                            <td className="px-4 pt-4 pb-1 align-top">
+                              <input
+                                type="text"
+                                value={draftDish.fullIngredients || ""}
+                                onChange={(e) => updateDraftDish('fullIngredients', e.target.value)}
+                                placeholder="Ingredienti (opzionale)"
+                                className="w-full text-xs italic bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-brand-accent"
+                              />
+                            </td>
+                          </tr>
+                          <tr className="bg-brand-accent/10 border-l-4 border-brand-accent">
+                            <td colSpan={3} className="px-4 pb-3 pt-1">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[9px] uppercase tracking-widest text-white/40">
+                                  Questa voce non e' ancora stata aggiunta. Conferma per inserirla.
+                                </span>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={cancelDraftDish}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/20 text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-white hover:border-white/40 transition-all"
+                                  >
+                                    <X size={12} /> Annulla
+                                  </button>
+                                  <button
+                                    onClick={confirmDraftDish}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-accent text-brand-bg text-[10px] uppercase font-bold tracking-widest hover:brightness-110 transition-all"
+                                  >
+                                    <Check size={12} strokeWidth={3} /> Conferma
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      )}
                       {Array.from(new Set(paginatedDishes.map(d => d.category || "VARIE"))).map(category => (
                         <React.Fragment key={category}>
                           <tr className="bg-white/10" key={`header-${category}`}>
@@ -282,7 +400,7 @@ export default function MenuReview({
                           ))}
                         </React.Fragment>
                       ))}
-                      {paginatedDishes.length === 0 && (
+                      {paginatedDishes.length === 0 && !draftDish && (
                         <tr key="empty-food">
                           <td colSpan={3} className="px-4 py-8 text-center text-xs opacity-40 uppercase tracking-widest">
                             Nessun piatto rilevato
@@ -327,9 +445,10 @@ export default function MenuReview({
                 </h3>
                 <p className="text-[10px] text-white mt-1 uppercase">controlla l'esattezza dei dati, puoi modificare o aggiungere piatti/drinks mancanti</p>
               </div>
-              <button 
-                onClick={addManualDrink}
-                className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest"
+              <button
+                onClick={startDraftDrink}
+                disabled={!!draftDrink}
+                className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Plus size={14} />
                 Aggiungi
@@ -348,6 +467,86 @@ export default function MenuReview({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
+                  {draftDrink && (
+                    <React.Fragment key="draft-drink">
+                      <tr className="bg-brand-accent/10 border-l-4 border-brand-accent">
+                        <td className="px-4 pt-4 pb-1 align-top">
+                          <select
+                            value={draftDrink.category || "Vino Rosso"}
+                            onChange={(e) => updateDraftDrink('category', e.target.value)}
+                            className="w-full text-[10px] uppercase bg-brand-bg-dark border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
+                          >
+                            <option value="Vino Rosso">Vino Rosso</option>
+                            <option value="Vino Bianco">Vino Bianco</option>
+                            <option value="Vino Rosato">Vino Rosato</option>
+                            <option value="Bollicine">Bollicine</option>
+                            <option value="Vino Dolce">Vino Dolce</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={draftDrink.vintage || ""}
+                            onChange={(e) => updateDraftDrink('vintage', e.target.value)}
+                            placeholder="Annata"
+                            className="w-full mt-1 text-[10px] uppercase bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white/70 focus:outline-none focus:border-brand-accent"
+                          />
+                        </td>
+                        <td className="px-4 pt-4 pb-1 align-top">
+                          <input
+                            type="text"
+                            value={draftDrink.producer || ""}
+                            onChange={(e) => updateDraftDrink('producer', e.target.value)}
+                            placeholder="Produttore"
+                            className="w-full text-xs uppercase bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
+                          />
+                        </td>
+                        <td className="px-4 pt-4 pb-1 align-top">
+                          <input
+                            type="text"
+                            value={draftDrink.product || ""}
+                            onChange={(e) => updateDraftDrink('product', e.target.value)}
+                            placeholder="Nome del vino*"
+                            autoFocus
+                            className="w-full font-bold uppercase tracking-tight text-sm bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
+                          />
+                        </td>
+                        <td className="px-4 pt-4 pb-1 align-top text-right">
+                          <input
+                            type="text"
+                            value={draftDrink.price || ""}
+                            onChange={(e) => updateDraftDrink('price', e.target.value)}
+                            placeholder="Prezzo"
+                            className="w-full text-right font-mono text-xs bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-brand-accent"
+                          />
+                        </td>
+                        <td className="px-4 pt-4 pb-1 align-top text-center text-[9px] uppercase tracking-widest text-white/30">
+                          —
+                        </td>
+                      </tr>
+                      <tr className="bg-brand-accent/10 border-l-4 border-brand-accent">
+                        <td colSpan={5} className="px-4 pb-3 pt-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[9px] uppercase tracking-widest text-white/40">
+                              Questa voce non e' ancora stata aggiunta. Conferma per inserirla.
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={cancelDraftDrink}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/20 text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-white hover:border-white/40 transition-all"
+                              >
+                                <X size={12} /> Annulla
+                              </button>
+                              <button
+                                onClick={confirmDraftDrink}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-accent text-brand-bg text-[10px] uppercase font-bold tracking-widest hover:brightness-110 transition-all"
+                              >
+                                <Check size={12} strokeWidth={3} /> Conferma
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  )}
                   {paginatedDrinks.map((drink, i) => {
                     const originalIndex = allDrinks.indexOf(drink);
                     return (
@@ -418,7 +617,7 @@ export default function MenuReview({
                       </tr>
                     );
                   })}
-                  {paginatedDrinks.length === 0 && (
+                  {paginatedDrinks.length === 0 && !draftDrink && (
                     <tr key="empty-drinks">
                       <td colSpan={5} className="px-4 py-8 text-center text-xs opacity-40 uppercase tracking-widest">
                         Nessuna bevanda rilevata
