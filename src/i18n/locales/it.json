@@ -99,7 +99,7 @@
         "producer": "Produttore",
         "product": "Prodotto",
         "price": "Prezzo",
-        "priority": "Priorità"
+        "priority": "Priorita"
       },
       "placeholders": {
         "vintage": "Annata",
@@ -125,7 +125,7 @@
       }
     },
     "draft": {
-      "notice": "Questa voce non è ancora stata aggiunta. Conferma per inserirla.",
+      "notice": "Questa voce non e ancora stata aggiunta. Conferma per inserirla.",
       "cancel": "Annulla",
       "confirm": "Conferma"
     },
@@ -160,13 +160,13 @@
     "welcome": {
       "tagline": "Trasforma menu e carta vini in una carta abbinamenti pronta da stampare grazie alla tecnologia di Dionisus.ai",
       "cta": "INIZIA ORA",
-      "whyHeading": "Perché funziona",
+      "whyHeading": "Perche funziona",
       "whyCard1": "PairBuilder non si limita a creare abbinamenti: trasforma menu e carta vini in uno strumento di vendita concreto, aiutando il ristorante a valorizzare le bottiglie con maggiore margine, migliorare la rotazione del magazzino e supportare il lavoro del sommelier con suggerimenti coerenti, immediati e pronti per il servizio.",
       "whyCard2": "Perché ogni abbinamento viene costruito partendo dalla tua carta vini reale e dalle priorità del locale, permettendo di mettere in evidenza le etichette strategiche, ridurre le giacenze e offrire ai clienti un'esperienza più curata senza aumentare il carico operativo della sala.",
       "whyCard3": "Perché PairBuilder unisce la logica del food pairing alla strategia commerciale del ristorante: crea una carta abbinamenti pronta da stampare che aiuta il personale a consigliare meglio i vini, rende più semplice valorizzare la cantina e trasforma la wine list in un vero motore di upselling.",
       "howHeading": "Come funziona",
       "howDescription": "PAIRBUILDER esegue una scansione molecolare del tuo menu per identificare ingredienti e profili di gusto. Utilizzando le logiche di Concordanza e Contrapposizione, incrocia questi dati con la tua cantina per creare l'esperienza perfetta per i tuoi ospiti. Puoi anche dare priorità a specifiche etichette per obiettivi strategici.",
-      "discoverMore": "Scopri di più"
+      "discoverMore": "Scopri di piu"
     },
     "extracting": {
       "headingCounting": "Scansionando...",
@@ -247,6 +247,42 @@
           "Un attimo, sto capendo il corpo e l'anima dei tuoi drinks..."
         ]
       }
+    }
+  },
+  "auth": {
+    "popup": {
+      "title": "Accedi a pAIrbuilder",
+      "tagline": "Crea un profilo e salva i tuoi documenti, così li ritrovi ogni volta.",
+      "guestButton": "Continua come ospite"
+    },
+    "tabs": {
+      "login": "Accedi",
+      "register": "Crea profilo"
+    },
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "restaurantName": "Nome locale",
+      "fullName": "Il tuo nome (facoltativo)",
+      "emailPlaceholder": "tu@ristorante.it",
+      "passwordPlaceholder": "almeno 8 caratteri",
+      "restaurantPlaceholder": "es. L'Osteria Moderna",
+      "fullNamePlaceholder": "Mario Rossi"
+    },
+    "submit": {
+      "login": "Accedi",
+      "register": "Crea profilo",
+      "loginLoading": "Accesso in corso...",
+      "registerLoading": "Creazione profilo..."
+    },
+    "menu": {
+      "loginEntry": "Accedi",
+      "registerEntry": "Crea profilo",
+      "loggedAs": "Connesso come {{name}}",
+      "logout": "Esci"
+    },
+    "errors": {
+      "generic": "Si è verificato un errore. Riprova."
     }
   },
   "about": {

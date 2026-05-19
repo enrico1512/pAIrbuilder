@@ -10,7 +10,11 @@ import PairingResults from "./components/PairingResults";
 import AboutSection, { type InfoMode } from "./components/AboutSection";
 import { FlashIcon } from "./components/FlashIcon";
 import LanguageSwitcher from "./components/LanguageSwitcher";
+import AuthModal from "./components/AuthModal";
+import { useAuth } from "./lib/auth";
 import { toBcp47, currencyFor } from "./i18n/languageMap";
+
+const AUTH_DISMISS_KEY = "pairbuilder.authDismissed";
 import { generatePairings, extractMenuData, listItemNames, type Pairing, type Dish, type Drink } from "./lib/gemini";
 import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
@@ -19,8 +23,38 @@ type Step = "welcome" | "restaurant" | "upload" | "extracting" | "review" | "loa
 
 export default function App() {
   const { t, i18n } = useTranslation();
+  const auth = useAuth();
   const [step, setStep] = useState<Step>("welcome");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('register');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open auth popup on first visit: only if not logged in, only after
+  // /api/auth/me has resolved (auth.loading=false), and only if the user
+  // hasn't already dismissed it ("continue as guest"). Persists dismissal
+  // in localStorage so the popup doesn't reappear every page load.
+  useEffect(() => {
+    if (auth.loading) return;
+    if (auth.user) return;
+    if (localStorage.getItem(AUTH_DISMISS_KEY) === '1') return;
+    setAuthModalTab('register');
+    setAuthModalOpen(true);
+  }, [auth.loading, auth.user]);
+
+  const handleAuthClose = () => {
+    if (!auth.user) localStorage.setItem(AUTH_DISMISS_KEY, '1');
+    setAuthModalOpen(false);
+  };
+
+  const openAuthModal = (tab: 'login' | 'register') => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    await auth.logout();
+    localStorage.removeItem(AUTH_DISMISS_KEY);
+  };
 
   // Ensure scroll to top on step changes
   useEffect(() => {
@@ -414,7 +448,7 @@ export default function App() {
         <div className="flex items-center gap-4">
           <div className="text-left hidden lg:block">
             <p className="text-[10px] uppercase tracking-widest opacity-60">{t('app.header.restaurantLabel')}</p>
-            <p className="text-sm font-bold truncate max-w-[150px]">{restaurantData?.name || t('app.header.restaurantFallback')}</p>
+            <p className="text-sm font-bold truncate max-w-[150px]">{restaurantData?.name || auth.restaurant?.name || t('app.header.restaurantFallback')}</p>
           </div>
         </div>
 
@@ -460,14 +494,37 @@ export default function App() {
                   <span>{t('app.dropdown.contact')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
-                <DropdownMenu.Item className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors">
-                  <Settings size={16} className="text-brand-accent" />
-                  <span>{t('app.dropdown.profile')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg outline-none cursor-pointer transition-colors mt-1">
-                  <LogOut size={16} />
-                  <span>{t('app.dropdown.logout')}</span>
-                </DropdownMenu.Item>
+                {auth.user ? (
+                  <>
+                    <div className="px-4 py-2 text-[10px] uppercase tracking-widest text-white/40">
+                      {t('auth.menu.loggedAs', { name: auth.restaurant?.name || auth.user.email })}
+                    </div>
+                    <DropdownMenu.Item
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg outline-none cursor-pointer transition-colors mt-1"
+                    >
+                      <LogOut size={16} />
+                      <span>{t('auth.menu.logout')}</span>
+                    </DropdownMenu.Item>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenu.Item
+                      onClick={() => openAuthModal('login')}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
+                    >
+                      <User size={16} className="text-brand-accent" />
+                      <span>{t('auth.menu.loginEntry')}</span>
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onClick={() => openAuthModal('register')}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-brand-accent hover:bg-brand-accent/10 rounded-lg outline-none cursor-pointer transition-colors"
+                    >
+                      <Settings size={16} />
+                      <span>{t('auth.menu.registerEntry')}</span>
+                    </DropdownMenu.Item>
+                  </>
+                )}
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
@@ -760,6 +817,8 @@ export default function App() {
           {t('app.footer.copyright')}
         </div>
       </footer>
+
+      <AuthModal open={authModalOpen} onClose={handleAuthClose} initialTab={authModalTab} />
     </div>
   );
 }

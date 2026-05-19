@@ -249,6 +249,42 @@
       }
     }
   },
+  "auth": {
+    "popup": {
+      "title": "Sign in to pAIrbuilder",
+      "tagline": "Create a profile and save your documents so you find them again every time.",
+      "guestButton": "Continue as guest"
+    },
+    "tabs": {
+      "login": "Sign in",
+      "register": "Create profile"
+    },
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "restaurantName": "Venue name",
+      "fullName": "Your name (optional)",
+      "emailPlaceholder": "you@restaurant.com",
+      "passwordPlaceholder": "at least 8 characters",
+      "restaurantPlaceholder": "e.g. The Modern Bistro",
+      "fullNamePlaceholder": "Jane Smith"
+    },
+    "submit": {
+      "login": "Sign in",
+      "register": "Create profile",
+      "loginLoading": "Signing in...",
+      "registerLoading": "Creating profile..."
+    },
+    "menu": {
+      "loginEntry": "Sign in",
+      "registerEntry": "Create profile",
+      "loggedAs": "Signed in as {{name}}",
+      "logout": "Log out"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again."
+    }
+  },
   "about": {
     "back": "Back",
     "footer": "© 2024 Dionisus AI Digital Ecosystem",
