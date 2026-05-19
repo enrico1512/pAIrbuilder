@@ -2,15 +2,27 @@ import { useTranslation } from "react-i18next";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Check, Languages } from "lucide-react";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "../i18n";
+import { useAuth } from "../lib/auth";
 
 export default function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
+  const { user } = useAuth();
 
   const current = (i18n.resolvedLanguage || i18n.language || 'it').split('-')[0] as SupportedLanguage;
 
   const change = (lng: SupportedLanguage) => {
     if (lng === current) return;
     void i18n.changeLanguage(lng);
+    // If the user is logged in, persist the choice to the DB so it follows
+    // them across browsers/devices. Fire-and-forget — UI updates immediately
+    // regardless of the network round-trip.
+    if (user) {
+      void fetch('/api/auth/preferred-language', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lng }),
+      }).catch(() => { /* non-blocking */ });
+    }
   };
 
   return (

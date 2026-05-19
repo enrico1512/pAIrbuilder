@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import i18n from '../i18n';
 
 export type AuthUser = {
   id: string;
   email: string;
   fullName: string | null;
+  preferredLanguage?: string | null;
 };
 
 export type AuthRestaurant = {
@@ -57,6 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRestaurant(data.restaurant
         ? { id: data.restaurant.id, slug: data.restaurant.slug, name: data.restaurant.name }
         : null);
+      // If the user has a saved preferred language and it differs from the
+      // current UI language, apply it. This makes the saved DB preference
+      // win over localStorage/navigator on login (and on session restore).
+      const pref = (data.user?.preferredLanguage as string | undefined)?.toLowerCase().slice(0, 2);
+      if (pref && (pref === 'it' || pref === 'en')) {
+        const current = (i18n.resolvedLanguage || i18n.language || 'it').split('-')[0];
+        if (pref !== current) void i18n.changeLanguage(pref);
+      }
     } catch {
       setUser(null);
       setRestaurant(null);

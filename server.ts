@@ -80,16 +80,22 @@ async function startServer() {
   // ====================================================================
   app.post('/api/auth/register', async (req, res) => {
     try {
-      const { restaurantName, slug, email, password, fullName } = req.body || {};
+      const { restaurantName, slug, email, password, fullName, preferredLanguage } = req.body || {};
       if (!restaurantName || !slug || !email || !password) {
         return res
           .status(400)
           .json({ error: tError(getLang(req), 'missingFields', { fields: 'restaurantName, slug, email, password' }) });
       }
+      // Default preferred_language to whatever lang the user is currently
+      // using in the UI (X-App-Language header), so the very first session
+      // after sign-up keeps their language without an extra round-trip.
+      const lang = preferredLanguage === 'en' || preferredLanguage === 'it'
+        ? preferredLanguage
+        : getLang(req);
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
       const [restaurant] = await db
         .insert(restaurants)
-        .values({ slug, name: restaurantName })
+        .values({ slug, name: restaurantName, defaultLanguage: lang })
         .returning();
       const [user] = await db
         .insert(users)
@@ -98,12 +104,13 @@ async function startServer() {
           email,
           passwordHash,
           fullName: fullName ?? null,
+          preferredLanguage: lang,
         })
         .returning();
       req.session.userId = user.id;
       req.session.restaurantId = restaurant.id;
       res.json({
-        user: { id: user.id, email: user.email, fullName: user.fullName },
+        user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
         restaurant: { id: restaurant.id, slug: restaurant.slug, name: restaurant.name },
       });
     } catch (err: any) {
@@ -126,7 +133,7 @@ async function startServer() {
       req.session.restaurantId = user.restaurantId;
       await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
       res.json({
-        user: { id: user.id, email: user.email, fullName: user.fullName },
+        user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
         restaurantId: user.restaurantId,
       });
     } catch (err: any) {
@@ -148,9 +155,23 @@ async function startServer() {
       .where(eq(restaurants.id, user.restaurantId))
       .limit(1);
     res.json({
-      user: { id: user.id, email: user.email, fullName: user.fullName },
+      user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
       restaurant: rest,
     });
+  });
+
+  app.put('/api/auth/preferred-language', requireAuth, async (req, res) => {
+    try {
+      const { language } = req.body || {};
+      if (language !== 'it' && language !== 'en') {
+        return res.status(400).json({ error: tError(getLang(req), 'missingFields', { fields: 'language (it|en)' }) });
+      }
+      await db.update(users).set({ preferredLanguage: language }).where(eq(users.id, req.session.userId!));
+      res.json({ ok: true, language });
+    } catch (err: any) {
+      console.error('Update preferred language error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'updateFailed') });
+    }
   });
 
   // ====================================================================
