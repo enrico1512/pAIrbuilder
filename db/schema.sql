@@ -79,6 +79,8 @@ CREATE TABLE restaurants (
   instagram       TEXT,
   facebook        TEXT,
   tripadvisor     TEXT,
+  -- preferenze
+  default_language CHAR(2) DEFAULT 'it',
   -- stato
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -102,6 +104,7 @@ CREATE TABLE users (
   password_hash   TEXT NOT NULL,                   -- bcrypt / argon2
   full_name       TEXT,
   role            user_role NOT NULL DEFAULT 'owner',
+  preferred_language CHAR(2) DEFAULT 'it',
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   email_verified_at TIMESTAMPTZ,
   last_login_at   TIMESTAMPTZ,

@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { Camera, Store } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface OnboardingProps {
   onNext: (data: { name: string; type: string; email: string; phone: string; logo: string | null }) => void;
@@ -9,6 +10,7 @@ interface OnboardingProps {
 const STORAGE_KEY = "pairbuilder_restaurant";
 
 export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
+  const { t } = useTranslation();
   const saved = (() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
   })();
@@ -60,8 +62,8 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
       className="max-w-2xl mx-auto glass-panel p-8 lg:p-12 space-y-8"
     >
       <div className="text-center space-y-2">
-        <h2 className="text-5xl">IL TUO LOCALE</h2>
-        <p className="text-white/60">Inserisci i tuoi dati per ricevere il pairing via mail e usalo per migliorare il servizio in sala</p>
+        <h2 className="text-5xl">{t('onboarding.title')}</h2>
+        <p className="text-white/60">{t('onboarding.subtitle')}</p>
       </div>
 
       <div className="flex flex-col items-center gap-4">
@@ -78,7 +80,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
             className="absolute inset-0 opacity-0 cursor-pointer"
           />
         </div>
-        <p className="text-xs uppercase tracking-widest text-white/40 text-center">Carica il Logo<br />(.jpg, .PDF, .svg, .JPEG)</p>
+        <p className="text-xs uppercase tracking-widest text-white/40 text-center">{t('onboarding.logo.upload')}<br />{t('onboarding.logo.formats')}</p>
       </div>
 
       <form
@@ -88,7 +90,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label htmlFor="org-name" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Nome Locale</label>
+            <label htmlFor="org-name" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.name.label')}</label>
             <input
               id="org-name"
               type="text"
@@ -98,13 +100,13 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
               onFocus={handleNameFocus}
               onBlur={handleNameBlur}
               onChange={(e) => setName(e.target.value)}
-              placeholder={nameFocused && !name && savedName ? savedName : "es. L'OSTERIA MODERNA"}
+              placeholder={nameFocused && !name && savedName ? savedName : t('onboarding.fields.name.placeholder')}
               className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="cuisine-type" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Tipo di Cucina</label>
+            <label htmlFor="cuisine-type" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.type.label')}</label>
             <input
               id="cuisine-type"
               type="text"
@@ -112,7 +114,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
               autoComplete="off"
               value={type}
               onChange={(e) => setType(e.target.value)}
-              placeholder="es. TRADIZIONE ITALIANA"
+              placeholder={t('onboarding.fields.type.placeholder')}
               className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
             />
           </div>
@@ -120,7 +122,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Email</label>
+            <label htmlFor="email" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.email.label')}</label>
             <input
               id="email"
               type="email"
@@ -128,13 +130,13 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="info@ristorante.it"
+              placeholder={t('onboarding.fields.email.placeholder')}
               className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 font-sans tracking-tight text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="tel" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">Telefono</label>
+            <label htmlFor="tel" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.phone.label')}</label>
             <input
               id="tel"
               type="tel"
@@ -142,7 +144,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
               autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+39 012 345678"
+              placeholder={t('onboarding.fields.phone.placeholder')}
               className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 font-sans tracking-tight text-sm"
             />
           </div>
@@ -153,7 +155,7 @@ export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
           disabled={!name || !type}
           className="btn-primary w-full mt-4"
         >
-          carica il tuo menu
+          {t('onboarding.submit')}
         </button>
       </form>
     </motion.div>

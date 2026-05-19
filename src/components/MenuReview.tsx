@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Check, BrainCircuit, Edit2, BarChart3, TrendingUp, Plus, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { type Dish, type Drink, analyzeDrinksWithMenu } from "../lib/gemini";
 
 interface ReviewProps {
@@ -13,11 +14,12 @@ export default function MenuReview({
   foodPages, 
   drinkPages, 
   onConfirm 
-}: { 
-  foodPages: { dishes: Dish[]; drinks: Drink[] }[]; 
-  drinkPages: { dishes: Dish[]; drinks: Drink[] }[]; 
-  onConfirm: (dishes: Dish[], drinks: Drink[]) => void 
+}: {
+  foodPages: { dishes: Dish[]; drinks: Drink[] }[];
+  drinkPages: { dishes: Dish[]; drinks: Drink[] }[];
+  onConfirm: (dishes: Dish[], drinks: Drink[]) => void
 }) {
+  const { t } = useTranslation();
   // Consolidate all results into two master lists for easy review
   const [allDishes, setAllDishes] = useState<Dish[]>(() => {
     const raw = [...foodPages.flatMap(p => p.dishes), ...drinkPages.flatMap(p => p.dishes)];
@@ -82,12 +84,12 @@ export default function MenuReview({
 
   const getDrinkDisplayLabel = (category: string) => {
     const cat = (category || "").toLowerCase();
-    if (cat.includes("vino") || cat.includes("bollicine")) return "Vino";
-    if (cat.includes("birra")) return "Birra";
-    if (cat.includes("cocktail")) return "Cocktail";
-    if (cat.includes("acq") || cat.includes("soft") || cat.includes("succo")) return "Analcolico";
-    if (cat.includes("caff") || cat.includes("the")) return "Caffetteria";
-    return "Drink";
+    if (cat.includes("vino") || cat.includes("bollicine") || cat.includes("wine") || cat.includes("sparkling")) return t('menuReview.drinks.displayLabels.wine');
+    if (cat.includes("birra") || cat.includes("beer")) return t('menuReview.drinks.displayLabels.beer');
+    if (cat.includes("cocktail")) return t('menuReview.drinks.displayLabels.cocktail');
+    if (cat.includes("acq") || cat.includes("soft") || cat.includes("succo") || cat.includes("water") || cat.includes("juice")) return t('menuReview.drinks.displayLabels.nonAlcoholic');
+    if (cat.includes("caff") || cat.includes("the") || cat.includes("coffee") || cat.includes("tea")) return t('menuReview.drinks.displayLabels.coffee');
+    return t('menuReview.drinks.displayLabels.generic');
   };
 
   const formatText = (text: string | undefined | null) => {
@@ -100,7 +102,7 @@ export default function MenuReview({
     const priorityCount = allDrinks.filter(d => d.isPriority).length;
     
     if (!allDrinks[index].isPriority && priorityCount >= 5) {
-      alert("Puoi selezionare al massimo 5 prodotti prioritari.");
+      alert(t('menuReview.alerts.priorityLimit'));
       return;
     }
     
@@ -138,7 +140,7 @@ export default function MenuReview({
   const confirmDraftDish = () => {
     if (!draftDish) return;
     if (!draftDish.name.trim()) {
-      alert("Inserisci il nome del piatto prima di confermare.");
+      alert(t('menuReview.alerts.missingDishName'));
       return;
     }
     const toAdd: Dish = {
@@ -172,7 +174,7 @@ export default function MenuReview({
   const confirmDraftDrink = () => {
     if (!draftDrink) return;
     if (!draftDrink.product.trim()) {
-      alert("Inserisci il nome del vino (Prodotto) prima di confermare.");
+      alert(t('menuReview.alerts.missingDrinkName'));
       return;
     }
     const toAdd: Drink = {
@@ -192,10 +194,11 @@ export default function MenuReview({
   const finalize = () => {
     if (draftDish || draftDrink) {
       const pending: string[] = [];
-      if (draftDish) pending.push("un piatto");
-      if (draftDrink) pending.push("un vino");
+      if (draftDish) pending.push(t('menuReview.alerts.pendingDish'));
+      if (draftDrink) pending.push(t('menuReview.alerts.pendingDrink'));
+      const separator = ` ${t('upload.status.separator')} `;
       const ok = confirm(
-        `Hai ${pending.join(" e ")} in bozza non ancora confermati. Se procedi verranno scartati. Vuoi continuare comunque?`
+        t('menuReview.alerts.pendingDiscard', { pending: pending.join(separator) })
       );
       if (!ok) return;
       setDraftDish(null);
@@ -213,10 +216,10 @@ export default function MenuReview({
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 text-brand-accent animate-pulse mb-2">
           <BrainCircuit size={18} />
-          <span className="text-[10px] uppercase font-bold tracking-widest">Dioniso Learning Mode Active</span>
+          <span className="text-[10px] uppercase font-bold tracking-widest">{t('menuReview.badge')}</span>
         </div>
-        <h2 className="text-5xl uppercase font-display">Conferma Menu e Drinks</h2>
-        <p className="text-white/60">Controlla i dati estratti e clicca ed eventualmente apporta modifiche.</p>
+        <h2 className="text-5xl uppercase font-display">{t('menuReview.title')}</h2>
+        <p className="text-white/60">{t('menuReview.subtitle')}</p>
       </div>
 
       {/* Analysis Panel */}
@@ -233,7 +236,7 @@ export default function MenuReview({
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-brand-accent">
               <TrendingUp size={20} />
-              <h3 className="text-xs font-bold uppercase tracking-widest">Analisi della tua Carta</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest">{t('menuReview.analysis.statsHeading')}</h3>
             </div>
             <div className="space-y-2">
               {isAnalyzing ? (
@@ -251,7 +254,7 @@ export default function MenuReview({
           </div>
 
           <div className="md:col-span-2 border-l border-white/10 md:pl-10 space-y-3">
-            <h4 className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">Considerazione Strategica</h4>
+            <h4 className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">{t('menuReview.analysis.strategyHeading')}</h4>
             <div className="relative">
               {isAnalyzing ? (
                 <div className="space-y-2 animate-pulse">
@@ -260,7 +263,7 @@ export default function MenuReview({
                 </div>
               ) : (
                 <p className="text-lg leading-relaxed font-normal text-white/90">
-                  "{analysis?.strategy || "Dioniso sta elaborando la strategia migliore per la tua cantina..."}"
+                  "{analysis?.strategy || t('menuReview.analysis.loadingStrategy')}"
                 </p>
               )}
             </div>
@@ -276,9 +279,9 @@ export default function MenuReview({
               <div>
                 <h3 className="text-brand-accent uppercase tracking-widest text-sm font-bold flex items-center gap-2">
                   <span className="w-2 h-2 bg-brand-accent rounded-full animate-pulse"></span>
-                  Menu Food
+                  {t('menuReview.menu.heading')}
                 </h3>
-                <p className="text-[10px] text-white mt-1 uppercase">controlla l'esattezza dei dati, puoi modificare o aggiungere piatti/drinks mancanti</p>
+                <p className="text-[10px] text-white mt-1 uppercase">{t('menuReview.sectionHint')}</p>
               </div>
               <button
                 onClick={startDraftDish}
@@ -286,7 +289,7 @@ export default function MenuReview({
                 className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Plus size={14} />
-                Aggiungi
+                {t('menuReview.menu.addButton')}
               </button>
             </div>
             
@@ -294,9 +297,9 @@ export default function MenuReview({
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-brand-bg-dark z-10">
                   <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">Categoria</th>
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">Piatto</th>
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">Ingredienti</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">{t('menuReview.menu.columns.category')}</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">{t('menuReview.menu.columns.dish')}</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">{t('menuReview.menu.columns.ingredients')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -308,7 +311,7 @@ export default function MenuReview({
                                 type="text"
                                 value={draftDish.category || ""}
                                 onChange={(e) => updateDraftDish('category', e.target.value)}
-                                placeholder="Categoria"
+                                placeholder={t('menuReview.menu.placeholders.category')}
                                 className="w-full text-[10px] uppercase bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
                               />
                             </td>
@@ -317,7 +320,7 @@ export default function MenuReview({
                                 type="text"
                                 value={draftDish.name || ""}
                                 onChange={(e) => updateDraftDish('name', e.target.value)}
-                                placeholder="Nome del piatto*"
+                                placeholder={t('menuReview.menu.placeholders.name')}
                                 autoFocus
                                 className="w-full font-bold uppercase tracking-tight text-sm bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
                               />
@@ -327,7 +330,7 @@ export default function MenuReview({
                                 type="text"
                                 value={draftDish.fullIngredients || ""}
                                 onChange={(e) => updateDraftDish('fullIngredients', e.target.value)}
-                                placeholder="Ingredienti (opzionale)"
+                                placeholder={t('menuReview.menu.placeholders.ingredients')}
                                 className="w-full text-xs italic bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-brand-accent"
                               />
                             </td>
@@ -336,20 +339,20 @@ export default function MenuReview({
                             <td colSpan={3} className="px-4 pb-3 pt-1">
                               <div className="flex items-center justify-between gap-3">
                                 <span className="text-[9px] uppercase tracking-widest text-white/40">
-                                  Questa voce non e' ancora stata aggiunta. Conferma per inserirla.
+                                  {t('menuReview.draft.notice')}
                                 </span>
                                 <div className="flex gap-2">
                                   <button
                                     onClick={cancelDraftDish}
                                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/20 text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-white hover:border-white/40 transition-all"
                                   >
-                                    <X size={12} /> Annulla
+                                    <X size={12} /> {t('menuReview.draft.cancel')}
                                   </button>
                                   <button
                                     onClick={confirmDraftDish}
                                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-accent text-brand-bg text-[10px] uppercase font-bold tracking-widest hover:brightness-110 transition-all"
                                   >
-                                    <Check size={12} strokeWidth={3} /> Conferma
+                                    <Check size={12} strokeWidth={3} /> {t('menuReview.draft.confirm')}
                                   </button>
                                 </div>
                               </div>
@@ -403,7 +406,7 @@ export default function MenuReview({
                       {paginatedDishes.length === 0 && !draftDish && (
                         <tr key="empty-food">
                           <td colSpan={3} className="px-4 py-8 text-center text-xs opacity-40 uppercase tracking-widest">
-                            Nessun piatto rilevato
+                            {t('menuReview.menu.empty')}
                           </td>
                         </tr>
                       )}
@@ -418,17 +421,17 @@ export default function MenuReview({
                 disabled={foodPage === 1}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
               >
-                <ChevronLeft size={13} /> Prec
+                <ChevronLeft size={13} /> {t('menuReview.pagination.prev')}
               </button>
               <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 text-center">
-                {sortedDishes.length === 0 ? "0 piatti" : `${(foodPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(foodPage * ITEMS_PER_PAGE, sortedDishes.length)} di ${sortedDishes.length}`}
+                {sortedDishes.length === 0 ? t('menuReview.menu.zeroCount') : t('menuReview.pagination.range', { start: (foodPage - 1) * ITEMS_PER_PAGE + 1, end: Math.min(foodPage * ITEMS_PER_PAGE, sortedDishes.length), total: sortedDishes.length })}
               </span>
               <button
                 onClick={() => setFoodPage(p => Math.min(totalFoodPages, p + 1))}
                 disabled={foodPage === totalFoodPages}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
               >
-                Succ <ChevronRight size={13} />
+                {t('menuReview.pagination.next')} <ChevronRight size={13} />
               </button>
             </div>}
           </div>
@@ -441,9 +444,9 @@ export default function MenuReview({
               <div>
                 <h3 className="text-brand-accent uppercase tracking-widest text-sm font-bold flex items-center gap-2">
                   <span className="w-2 h-2 bg-brand-accent rounded-full animate-pulse"></span>
-                  La Tua Carta Drinks
+                  {t('menuReview.drinks.heading')}
                 </h3>
-                <p className="text-[10px] text-white mt-1 uppercase">controlla l'esattezza dei dati, puoi modificare o aggiungere piatti/drinks mancanti</p>
+                <p className="text-[10px] text-white mt-1 uppercase">{t('menuReview.sectionHint')}</p>
               </div>
               <button
                 onClick={startDraftDrink}
@@ -451,7 +454,7 @@ export default function MenuReview({
                 className="flex items-center gap-2 bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent px-3 py-1.5 rounded-lg border border-brand-accent/30 transition-all text-[10px] uppercase font-bold tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Plus size={14} />
-                Aggiungi
+                {t('menuReview.drinks.addButton')}
               </button>
             </div>
 
@@ -459,11 +462,11 @@ export default function MenuReview({
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-brand-bg-dark z-10">
                   <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">Categoria</th>
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">Produttore</th>
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">Prodotto</th>
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium text-right">Prezzo</th>
-                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium text-center">Priorita</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">{t('menuReview.drinks.columns.category')}</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">{t('menuReview.drinks.columns.producer')}</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium">{t('menuReview.drinks.columns.product')}</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium text-right">{t('menuReview.drinks.columns.price')}</th>
+                    <th className="px-4 py-3 text-[10px] uppercase tracking-widest opacity-40 font-medium text-center">{t('menuReview.drinks.columns.priority')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -476,17 +479,17 @@ export default function MenuReview({
                             onChange={(e) => updateDraftDrink('category', e.target.value)}
                             className="w-full text-[10px] uppercase bg-brand-bg-dark border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
                           >
-                            <option value="Vino Rosso">Vino Rosso</option>
-                            <option value="Vino Bianco">Vino Bianco</option>
-                            <option value="Vino Rosato">Vino Rosato</option>
-                            <option value="Bollicine">Bollicine</option>
-                            <option value="Vino Dolce">Vino Dolce</option>
+                            <option value="Vino Rosso">{t('menuReview.drinks.categoryOptions.redWine')}</option>
+                            <option value="Vino Bianco">{t('menuReview.drinks.categoryOptions.whiteWine')}</option>
+                            <option value="Vino Rosato">{t('menuReview.drinks.categoryOptions.roseWine')}</option>
+                            <option value="Bollicine">{t('menuReview.drinks.categoryOptions.sparkling')}</option>
+                            <option value="Vino Dolce">{t('menuReview.drinks.categoryOptions.sweetWine')}</option>
                           </select>
                           <input
                             type="text"
                             value={draftDrink.vintage || ""}
                             onChange={(e) => updateDraftDrink('vintage', e.target.value)}
-                            placeholder="Annata"
+                            placeholder={t('menuReview.drinks.placeholders.vintage')}
                             className="w-full mt-1 text-[10px] uppercase bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white/70 focus:outline-none focus:border-brand-accent"
                           />
                         </td>
@@ -495,7 +498,7 @@ export default function MenuReview({
                             type="text"
                             value={draftDrink.producer || ""}
                             onChange={(e) => updateDraftDrink('producer', e.target.value)}
-                            placeholder="Produttore"
+                            placeholder={t('menuReview.drinks.placeholders.producer')}
                             className="w-full text-xs uppercase bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
                           />
                         </td>
@@ -504,7 +507,7 @@ export default function MenuReview({
                             type="text"
                             value={draftDrink.product || ""}
                             onChange={(e) => updateDraftDrink('product', e.target.value)}
-                            placeholder="Nome del vino*"
+                            placeholder={t('menuReview.drinks.placeholders.name')}
                             autoFocus
                             className="w-full font-bold uppercase tracking-tight text-sm bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white focus:outline-none focus:border-brand-accent"
                           />
@@ -514,7 +517,7 @@ export default function MenuReview({
                             type="text"
                             value={draftDrink.price || ""}
                             onChange={(e) => updateDraftDrink('price', e.target.value)}
-                            placeholder="Prezzo"
+                            placeholder={t('menuReview.drinks.placeholders.price')}
                             className="w-full text-right font-mono text-xs bg-transparent border border-brand-accent/40 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-brand-accent"
                           />
                         </td>
@@ -526,20 +529,20 @@ export default function MenuReview({
                         <td colSpan={5} className="px-4 pb-3 pt-1">
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-[9px] uppercase tracking-widest text-white/40">
-                              Questa voce non e' ancora stata aggiunta. Conferma per inserirla.
+                              {t('menuReview.draft.notice')}
                             </span>
                             <div className="flex gap-2">
                               <button
                                 onClick={cancelDraftDrink}
                                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/20 text-[10px] uppercase font-bold tracking-widest text-white/60 hover:text-white hover:border-white/40 transition-all"
                               >
-                                <X size={12} /> Annulla
+                                <X size={12} /> {t('menuReview.draft.cancel')}
                               </button>
                               <button
                                 onClick={confirmDraftDrink}
                                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-accent text-brand-bg text-[10px] uppercase font-bold tracking-widest hover:brightness-110 transition-all"
                               >
-                                <Check size={12} strokeWidth={3} /> Conferma
+                                <Check size={12} strokeWidth={3} /> {t('menuReview.draft.confirm')}
                               </button>
                             </div>
                           </div>
@@ -620,7 +623,7 @@ export default function MenuReview({
                   {paginatedDrinks.length === 0 && !draftDrink && (
                     <tr key="empty-drinks">
                       <td colSpan={5} className="px-4 py-8 text-center text-xs opacity-40 uppercase tracking-widest">
-                        Nessuna bevanda rilevata
+                        {t('menuReview.drinks.empty')}
                       </td>
                     </tr>
                   )}
@@ -635,17 +638,17 @@ export default function MenuReview({
                 disabled={drinkPage === 1}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
               >
-                <ChevronLeft size={13} /> Prec
+                <ChevronLeft size={13} /> {t('menuReview.pagination.prev')}
               </button>
               <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 text-center">
-                {`${(drinkPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(drinkPage * ITEMS_PER_PAGE, sortedDrinks.length)} di ${sortedDrinks.length}`}
+                {t('menuReview.pagination.range', { start: (drinkPage - 1) * ITEMS_PER_PAGE + 1, end: Math.min(drinkPage * ITEMS_PER_PAGE, sortedDrinks.length), total: sortedDrinks.length })}
               </span>
               <button
                 onClick={() => setDrinkPage(p => Math.min(totalDrinkPages, p + 1))}
                 disabled={drinkPage === totalDrinkPages}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest font-bold disabled:opacity-20 disabled:cursor-not-allowed hover:enabled:border-brand-accent hover:enabled:text-brand-accent transition-all"
               >
-                Succ <ChevronRight size={13} />
+                {t('menuReview.pagination.next')} <ChevronRight size={13} />
               </button>
             </div>}
           </div>
@@ -657,7 +660,7 @@ export default function MenuReview({
           onClick={finalize}
           className="btn-primary px-20 py-5 text-2xl"
         >
-          GENERA ABBINAMENTI PERFETTI
+          {t('menuReview.finalize')}
         </button>
       </div>
     </motion.div>

@@ -1,0 +1,395 @@
+{
+  "common": {
+    "appName": "pAIrbuilder",
+    "language": {
+      "it": "Italiano",
+      "en": "Inglese"
+    }
+  },
+  "onboarding": {
+    "title": "IL TUO LOCALE",
+    "subtitle": "Inserisci i tuoi dati per ricevere il pairing via mail e usalo per migliorare il servizio in sala",
+    "logo": {
+      "upload": "Carica il Logo",
+      "formats": "(.jpg, .PDF, .svg, .JPEG)"
+    },
+    "fields": {
+      "name": {
+        "label": "Nome Locale",
+        "placeholder": "es. L'OSTERIA MODERNA"
+      },
+      "type": {
+        "label": "Tipo di Cucina",
+        "placeholder": "es. TRADIZIONE ITALIANA"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "info@ristorante.it"
+      },
+      "phone": {
+        "label": "Telefono",
+        "placeholder": "+39 012 345678"
+      }
+    },
+    "submit": "carica il tuo menu"
+  },
+  "upload": {
+    "title": "I TUOI MENU",
+    "subtitle": "Carica i documenti del tuo ristorante per iniziare il matching.",
+    "reset": "Resetta",
+    "menu": {
+      "heading": "MENU PIATTI",
+      "inputTitle": "Carica menu",
+      "addMore": "Aggiungi Altro File Menu",
+      "successTitle": "File caricati con successo",
+      "successHint": "Clicca o trascina per aggiungere altri menu",
+      "dropHint": "Trascina o clicca per caricare foto, PDF, Word o Excel del menu"
+    },
+    "drinks": {
+      "heading": "CARTA DRINKS",
+      "inputTitle": "Carica drinks",
+      "addMore": "Aggiungi Altro File Drinks",
+      "successTitle": "Drinks caricati con successo",
+      "successHint": "Clicca o trascina per aggiungere altri drinks",
+      "dropHint": "Trascina o clicca per caricare foto, PDF, Word o Excel dei drinks"
+    },
+    "testData": "⚡ Test con file di esempio",
+    "status": {
+      "label": "Pronto per l'estrazione:",
+      "menuCount_one": "{{count}} menu",
+      "menuCount_other": "{{count}} menu",
+      "drinksCount_one": "{{count}} drink",
+      "drinksCount_other": "{{count}} drinks",
+      "separator": "e"
+    },
+    "back": "Indietro",
+    "next": "CONFERMA E PROCEDI →"
+  },
+  "menuReview": {
+    "badge": "Dioniso Learning Mode Active",
+    "title": "Conferma Menu e Drinks",
+    "subtitle": "Controlla i dati estratti e clicca ed eventualmente apporta modifiche.",
+    "sectionHint": "controlla l'esattezza dei dati, puoi modificare o aggiungere piatti/drinks mancanti",
+    "analysis": {
+      "statsHeading": "Analisi della tua Carta",
+      "strategyHeading": "Considerazione Strategica",
+      "loadingStrategy": "Dioniso sta elaborando la strategia migliore per la tua cantina..."
+    },
+    "menu": {
+      "heading": "Menu Food",
+      "addButton": "Aggiungi",
+      "columns": {
+        "category": "Categoria",
+        "dish": "Piatto",
+        "ingredients": "Ingredienti"
+      },
+      "placeholders": {
+        "category": "Categoria",
+        "name": "Nome del piatto*",
+        "ingredients": "Ingredienti (opzionale)"
+      },
+      "empty": "Nessun piatto rilevato",
+      "zeroCount": "0 piatti"
+    },
+    "drinks": {
+      "heading": "La Tua Carta Drinks",
+      "addButton": "Aggiungi",
+      "columns": {
+        "category": "Categoria",
+        "producer": "Produttore",
+        "product": "Prodotto",
+        "price": "Prezzo",
+        "priority": "Priorita"
+      },
+      "placeholders": {
+        "vintage": "Annata",
+        "producer": "Produttore",
+        "name": "Nome del vino*",
+        "price": "Prezzo"
+      },
+      "empty": "Nessuna bevanda rilevata",
+      "categoryOptions": {
+        "redWine": "Vino Rosso",
+        "whiteWine": "Vino Bianco",
+        "roseWine": "Vino Rosato",
+        "sparkling": "Bollicine",
+        "sweetWine": "Vino Dolce"
+      },
+      "displayLabels": {
+        "wine": "Vino",
+        "beer": "Birra",
+        "cocktail": "Cocktail",
+        "nonAlcoholic": "Analcolico",
+        "coffee": "Caffetteria",
+        "generic": "Drink"
+      }
+    },
+    "draft": {
+      "notice": "Questa voce non e ancora stata aggiunta. Conferma per inserirla.",
+      "cancel": "Annulla",
+      "confirm": "Conferma"
+    },
+    "pagination": {
+      "prev": "Prec",
+      "next": "Succ",
+      "range": "{{start}}–{{end}} di {{total}}"
+    },
+    "finalize": "GENERA ABBINAMENTI PERFETTI",
+    "alerts": {
+      "priorityLimit": "Puoi selezionare al massimo 5 prodotti prioritari.",
+      "missingDishName": "Inserisci il nome del piatto prima di confermare.",
+      "missingDrinkName": "Inserisci il nome del vino (Prodotto) prima di confermare.",
+      "pendingDish": "un piatto",
+      "pendingDrink": "un vino",
+      "pendingDiscard": "Hai {{pending}} in bozza non ancora confermati. Se procedi verranno scartati. Vuoi continuare comunque?"
+    }
+  },
+  "app": {
+    "header": {
+      "restaurantLabel": "Ristorante",
+      "restaurantFallback": "L'Osteria",
+      "menuTrigger": "Menu"
+    },
+    "dropdown": {
+      "aboutUs": "Chi siamo",
+      "howItWorks": "Come funziona",
+      "contact": "Contatti",
+      "profile": "Profilo",
+      "logout": "Esci"
+    },
+    "welcome": {
+      "tagline": "Trasforma menu e carta vini in una carta abbinamenti pronta da stampare grazie alla tecnologia di Dionisus.ai",
+      "cta": "INIZIA ORA",
+      "whyHeading": "Perche funziona",
+      "whyCard1": "PairBuilder non si limita a creare abbinamenti: trasforma menu e carta vini in uno strumento di vendita concreto, aiutando il ristorante a valorizzare le bottiglie con maggiore margine, migliorare la rotazione del magazzino e supportare il lavoro del sommelier con suggerimenti coerenti, immediati e pronti per il servizio.",
+      "whyCard2": "Perché ogni abbinamento viene costruito partendo dalla tua carta vini reale e dalle priorità del locale, permettendo di mettere in evidenza le etichette strategiche, ridurre le giacenze e offrire ai clienti un'esperienza più curata senza aumentare il carico operativo della sala.",
+      "whyCard3": "Perché PairBuilder unisce la logica del food pairing alla strategia commerciale del ristorante: crea una carta abbinamenti pronta da stampare che aiuta il personale a consigliare meglio i vini, rende più semplice valorizzare la cantina e trasforma la wine list in un vero motore di upselling.",
+      "howHeading": "Come funziona",
+      "howDescription": "PAIRBUILDER esegue una scansione molecolare del tuo menu per identificare ingredienti e profili di gusto. Utilizzando le logiche di Concordanza e Contrapposizione, incrocia questi dati con la tua cantina per creare l'esperienza perfetta per i tuoi ospiti. Puoi anche dare priorità a specifiche etichette per obiettivi strategici.",
+      "discoverMore": "Scopri di piu"
+    },
+    "extracting": {
+      "headingCounting": "Scansionando...",
+      "headingExtracting": "Estraendo...",
+      "pageOf": "Pagina {{current}} di {{total}}",
+      "progress": {
+        "menuStructure": "Analisi struttura menu...",
+        "drinkList": "Analisi carta dei vini...",
+        "transcribing": "Trascrizione: {{done}} di {{total}} completati...",
+        "digitalizing": "Digitalizzazione: {{done}} di {{total}} completati..."
+      },
+      "counter": {
+        "dishes": "Piatti",
+        "drinks": "Drinks"
+      },
+      "statusCounting": "Individuo piatti e vini",
+      "statusExtracting": "Conversione in digitale"
+    },
+    "loading": {
+      "title": "Sto creando la magia...",
+      "subtitle": "Dioniso sta analizzando i sapori e le note dei tuoi drinks."
+    },
+    "addDrinks": {
+      "title": "Estrazione parziale completata",
+      "summary": "Dioniso ha processato parte dei tuoi file. Abbiamo estratto <1>{{dishes}}</1> piatti e <3>{{drinks}}</3> drinks finora.",
+      "remainingHeading": "File drinks rimanenti ({{count}}):",
+      "continueButton": "Continua con i file rimanenti",
+      "skipButton": "Vai ai risultati con i dati attuali",
+      "addMoreLink": "Aggiungi altri file drinks",
+      "stats": {
+        "menuUploaded": "Menu Caricato",
+        "dishesExtracted": "Piatti Estratti",
+        "drinksExtracted": "Drinks Estratti",
+        "filesRemaining": "File Rimanenti"
+      }
+    },
+    "footer": {
+      "aiEngine": "AI Engine Active v3.2",
+      "aiModeLabel": "AI Mode: {{status}}",
+      "tagline": "bevi da Dio",
+      "copyright": "© 2024 pAIrbuilder"
+    },
+    "errors": {
+      "extractionFailed": "C'è stato un errore nell'estrazione dei dati. Riprova.",
+      "timeout": "Operazione scaduta, riprova con meno file o piatti.",
+      "pairingFailed": "C'è stato un errore nella generazione degli abbinamenti."
+    },
+    "funPhrases": {
+      "food": {
+        "counting": [
+          "Dioniso sta dando un'occhiata veloce ai tuoi piatti...",
+          "Scansiono gli antipasti... un attimo di pazienza!",
+          "Analisi dei primi piatti in corso...",
+          "Cerco segnali di delizie gourmet nel tuo menu...",
+          "Dioniso sta leggendo la lista dei piatti..."
+        ],
+        "extracting": [
+          "Dioniso sta assaggiando virtualmente ogni ingrediente...",
+          "Sto preparando la cucina digitale per l'estrazione...",
+          "Analisi sensoriale dei dettagli in corso...",
+          "Sto trascrivendo le tue ricette nel database dell'Olimpo...",
+          "Un attimo, sto capendo la personalità di ogni piatto..."
+        ]
+      },
+      "drinks": {
+        "counting": [
+          "Dioniso sta sfogliando la tua cantina digitale...",
+          "Controllo i vitigni presenti nella tua lista...",
+          "Leggo etichette e regioni vinicole...",
+          "Identifico bollicine e rossi d'annata...",
+          "Dioniso sta contando le tue bottiglie migliori..."
+        ],
+        "extracting": [
+          "Stappo virtualmente le informazioni più preziose...",
+          "L'AI sta decantando i dettagli tecnici dei tuoi vini...",
+          "Sto mettendo in fresco le bottiglie per l'abbinamento...",
+          "Analisi dei terroir e dei produttori in corso...",
+          "Un attimo, sto capendo il corpo e l'anima dei tuoi drinks..."
+        ]
+      }
+    }
+  },
+  "auth": {
+    "popup": {
+      "title": "Accedi a pAIrbuilder",
+      "tagline": "Crea un profilo e salva i tuoi documenti, così li ritrovi ogni volta.",
+      "guestButton": "Continua come ospite"
+    },
+    "tabs": {
+      "login": "Accedi",
+      "register": "Crea profilo"
+    },
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "restaurantName": "Nome locale",
+      "fullName": "Il tuo nome (facoltativo)",
+      "emailPlaceholder": "tu@ristorante.it",
+      "passwordPlaceholder": "almeno 8 caratteri",
+      "restaurantPlaceholder": "es. L'Osteria Moderna",
+      "fullNamePlaceholder": "Mario Rossi"
+    },
+    "submit": {
+      "login": "Accedi",
+      "register": "Crea profilo",
+      "loginLoading": "Accesso in corso...",
+      "registerLoading": "Creazione profilo..."
+    },
+    "menu": {
+      "loginEntry": "Accedi",
+      "registerEntry": "Crea profilo",
+      "loggedAs": "Connesso come {{name}}",
+      "logout": "Esci"
+    },
+    "errors": {
+      "generic": "Si è verificato un errore. Riprova."
+    }
+  },
+  "about": {
+    "back": "Torna indietro",
+    "footer": "© 2024 Dionisus AI Digital Ecosystem",
+    "howItWorks": {
+      "title": "L'Algoritmo<1/><2>Del Gusto</2>",
+      "subtitle": "PAIRBUILDER non si limita a leggere i dati. Interpreta l'anima del tuo menu per creare connessioni sensoriali che fino a ieri erano riservate ai più grandi Sommelier.",
+      "molecularBalance": {
+        "heading": "Equilibrio Molecolare",
+        "p1": "Dionisus AI esegue una <1>scansione bio-aromatica</1>. Ogni ingrediente viene scomposto nei suoi descrittori chimici: grassezza, tendenza acida, sapidità, succulenza e persistenza.",
+        "p2": "Contemporaneamente, analizziamo la tua cantina de-strutturando ogni etichetta in base a corpo, tannino, alcolicità e residuo zuccherino. L'algoritmo non cerca solo un nome simile, ma calcola la <1>compensazione fisica</1> tra cibo e vino."
+      },
+      "concordance": {
+        "label": "CONCORDANZA",
+        "description": "L'AI allinea le intensità. Un piatto strutturato richiede un vino di corpo. Un dessert dolce richiede un vino con più zucchero."
+      },
+      "contrast": {
+        "label": "CONTRASTO",
+        "description": "L'AI pulisce il palato. La sapidità del vino contrasta la grassezza del cibo. L'acidità taglia l'untuosità, resettando le papille ad ogni morso."
+      },
+      "professionalOutput": {
+        "heading": "Output Professionale",
+        "paragraph": "Dalla teoria alla tavola. Il sistema genera istantaneamente un <1>documento PDF elegante</1> pronto per essere presentato ai tuoi ospiti come un inserto speciale della tua carta.",
+        "pill1": "Cambio menu in pochi secondi, non ore.",
+        "pill2": "Upselling guidato da basi scientifiche."
+      },
+      "priorityIntelligence": {
+        "heading": "Priority Intelligence",
+        "p1": "I tuoi obiettivi commerciali sono parte del nostro codice. Grazie al sistema <1>Priority Management</1>, puoi guidare l'AI.",
+        "p2": "Segnalando le tue bottiglie strategiche (novità, stock o referenze premium), l'algoritmo cercherà per priorità il miglior abbinamento possibile tra queste scelte."
+      },
+      "cta": {
+        "title": "Vuoi automatizzare l'esperienza?",
+        "description": "PAIRBUILDER è lo strumento perfetto per i tuoi abbinamenti stampabili. Ma se desideri una <1>Carta Vini Digitale</1> interattiva che venda da sola, scopri Ambrosiavino.",
+        "button": "Passa ad Ambrosiavino",
+        "tagline": "L'evoluzione professionale del tuo beverage design"
+      }
+    },
+    "aboutUs": {
+      "title": "Dionisus<1/><2>AI Ecosystem</2>",
+      "subtitle": "Siamo i pionieri dell'Intelligenza Artificiale applicata al mondo del Food & Beverage. Trasformiamo i dati in emozioni e il servizio in eccellenza operativa.",
+      "beyondCode": {
+        "heading": "Oltre il Codice",
+        "p1": "L'ecosistema <1>Dionisus AI</1> nasce dalla visione di unire l'antica tradizione dell'accoglienza con le frontiere dell'intelligenza evoluta. Non creiamo semplici software, ma collaboratori digitali che aumentano esponenzialmente le capacità dei professionisti.",
+        "p2": "La missione è abbattere le barriere tra tecnologia e gusto, rendendo l'alta sommelierie accessibile e scalabile per ogni realtà della ristorazione moderna."
+      },
+      "team": {
+        "heading": "Il Nostro Team",
+        "p1": "Siamo un gruppo multidisciplinare dove l'<1>eccellenza enologica</1> incontra lo <3>sviluppo software d'avanguardia</3>.",
+        "p2": "Il nostro team è composto da <1>Enologi</1> e ingegneri specializzati in Artificial Intelligence e Machine Learning, lavorando in sinergia per decodificare il linguaggio del gusto in algoritmi precisi."
+      },
+      "ecosystem": {
+        "heading": "Digital F&B DNA",
+        "ambrosiavinoDescription": "L'ammiraglia del nostro ecosistema. Molto più di un menu digitale: <1>Ambrosiavino</1> è uno strumento di intelligence che analizza i profili dei clienti e massimizza la rotazione di cantina attraverso algoritmi di raccomandazione predittiva.",
+        "ambrosiavinoLink": "Esplora Ambrosiavino.com",
+        "dionisusDescription": "Il nucleo tecnologico dell'ecosistema. <1>Dionisus.ai</1> integra analisi di mercato in tempo reale, gestione dei costi intelligenti e strumenti di marketing automation progettati specificamente per scalare il successo della ristorazione moderna.",
+        "dionisusLink": "Visita Dionisus.ai",
+        "footer": "Dionisus AI monitora costantemente i trend globali del F&B per sviluppare strumenti che convertano la complessità dei dati in semplicità d'uso e profitto per il ristoratore."
+      }
+    },
+    "contact": {
+      "title": "Let's<1/><2>Talk</2>",
+      "subtitle": "Hai domande tecniche o vuoi integrare le nostre tecnologie nel tuo ristorante? Siamo qui per questo.",
+      "hq": {
+        "heading": "Sede Centrale",
+        "description": "Il cuore pulsante di Dionisus AI.<1/>Innovazione Italiana per il mercato globale."
+      },
+      "feedback": {
+        "label": "Feedback",
+        "description": "I tuoi suggerimenti guidano la nostra AI"
+      },
+      "development": {
+        "label": "Sviluppo",
+        "description": "Custom API per grandi gruppi F&B"
+      }
+    }
+  },
+  "pairing": {
+    "dashboard": {
+      "badge": "Abbinamenti pronti!",
+      "instruction": "Seleziona i piatti da includere nel menu finale, poi clicca <1>Procedi al Recap</1> in fondo alla lista.",
+      "listHeading": "Piatti Abbinati",
+      "selectAll": "Seleziona tutti",
+      "deselectAll": "Deseleziona",
+      "dishFallback": "Piatto {{n}}",
+      "subtitle": "Abbinamenti consigliati da Dioniso",
+      "concordanceHeading": "Concordanza",
+      "contrastHeading": "Contrasto",
+      "proceedButton": "Procedi al Recap",
+      "resetButton": "Ricomincia Match"
+    },
+    "recap": {
+      "title": "Recap Abbinamenti",
+      "selectedCount_one": "{{count}} piatto selezionato per il menu finale",
+      "selectedCount_other": "{{count}} piatti selezionati per il menu finale",
+      "printButton": "Stampa Menu in PDF"
+    },
+    "matchType": {
+      "Concordanza": "Concordanza",
+      "Contrapposizione": "Contrapposizione"
+    },
+    "pdf": {
+      "title": "Menu abbinamenti consigliati",
+      "pageFooter": "Pagina {{current}} di {{total}}",
+      "signature": "Generato con Dioniso Sommelier AI",
+      "filename": "Menu_abbinamenti_consigliati.pdf"
+    }
+  }
+}

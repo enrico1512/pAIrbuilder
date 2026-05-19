@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Upload, X, Utensils, Wine, Check, BrainCircuit, Info, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { learningService } from "../lib/learningService";
 
 interface MenuUploadProps {
@@ -9,6 +10,7 @@ interface MenuUploadProps {
 }
 
 export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
+  const { t } = useTranslation();
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
   const [drinksFiles, setDrinksFiles] = useState<File[]>([]);
   const [showLearningInfo, setShowLearningInfo] = useState(false);
@@ -79,8 +81,8 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
       className="max-w-4xl mx-auto space-y-8"
     >
       <div className="text-center space-y-4 max-w-2xl mx-auto mb-12">
-        <h2 className="text-4xl lg:text-5xl mb-2">I TUOI MENU</h2>
-        <p className="text-white/60">Carica i documenti del tuo ristorante per iniziare il matching.</p>
+        <h2 className="text-4xl lg:text-5xl mb-2">{t('upload.title')}</h2>
+        <p className="text-white/60">{t('upload.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -90,7 +92,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
             <div className="flex items-center gap-3">
               <Utensils className={menuFiles.length > 0 ? 'text-brand-accent' : 'text-white/40'} />
               <div className="flex items-center gap-2">
-                <h3 className="text-2xl">MENU PIATTI</h3>
+                <h3 className="text-2xl">{t('upload.menu.heading')}</h3>
                 {menuFiles.length > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
@@ -103,11 +105,11 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               </div>
             </div>
             {menuFiles.length > 0 && (
-              <button 
+              <button
                 onClick={() => setMenuFiles([])}
                 className="text-[10px] uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"
               >
-                Resetta
+                {t('upload.reset')}
               </button>
             )}
           </div>
@@ -129,7 +131,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
               onChange={(e) => handleFileChange(e, 'menu')}
               className="absolute inset-0 opacity-0 cursor-pointer z-10"
-              title="Carica menu"
+              title={t('upload.menu.inputTitle')}
             />
             {menuFiles.length > 0 ? (
               <motion.div
@@ -140,13 +142,13 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
                 <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center text-brand-accent">
                   <Check size={32} strokeWidth={3} />
                 </div>
-                <p className="text-sm font-bold text-brand-accent uppercase">File caricati con successo</p>
-                <p className="text-[10px] opacity-60 uppercase tracking-tighter mt-1">Clicca o trascina per aggiungere altri menu</p>
+                <p className="text-sm font-bold text-brand-accent uppercase">{t('upload.menu.successTitle')}</p>
+                <p className="text-[10px] opacity-60 uppercase tracking-tighter mt-1">{t('upload.menu.successHint')}</p>
               </motion.div>
             ) : (
               <>
                 <Upload className="mx-auto mb-2 text-white/40" />
-                <p className="text-sm text-white/60">Trascina o clicca per caricare foto, PDF, Word o Excel del menu</p>
+                <p className="text-sm text-white/60">{t('upload.menu.dropHint')}</p>
               </>
             )}
           </div>
@@ -156,7 +158,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               <div className="flex justify-center mb-4">
                 <label className="text-[10px] uppercase font-bold tracking-widest bg-brand-accent/20 text-brand-accent px-4 py-2 rounded-full cursor-pointer hover:bg-brand-accent/30 transition-colors inline-flex items-center gap-2 border border-brand-accent/20">
                   <Upload size={12} />
-                  Aggiungi Altro File Menu
+                  {t('upload.menu.addMore')}
                   <input
                     type="file"
                     multiple
@@ -190,7 +192,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
             <div className="flex items-center gap-3">
               <Wine className={drinksFiles.length > 0 ? 'text-brand-accent' : 'text-white/40'} />
               <div className="flex items-center gap-2">
-                <h3 className="text-2xl">CARTA DRINKS</h3>
+                <h3 className="text-2xl">{t('upload.drinks.heading')}</h3>
                 {drinksFiles.length > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
@@ -203,11 +205,11 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               </div>
             </div>
             {drinksFiles.length > 0 && (
-              <button 
+              <button
                 onClick={() => setDrinksFiles([])}
                 className="text-[10px] uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"
               >
-                Resetta
+                {t('upload.reset')}
               </button>
             )}
           </div>
@@ -229,7 +231,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
               onChange={(e) => handleFileChange(e, 'drinks')}
               className="absolute inset-0 opacity-0 cursor-pointer z-10"
-              title="Carica drinks"
+              title={t('upload.drinks.inputTitle')}
             />
             {drinksFiles.length > 0 ? (
               <motion.div
@@ -240,13 +242,13 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
                 <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center text-brand-accent">
                   <Check size={32} strokeWidth={3} />
                 </div>
-                <p className="text-sm font-bold text-brand-accent uppercase">Drinks caricati con successo</p>
-                <p className="text-[10px] opacity-60 uppercase tracking-tighter mt-1">Clicca o trascina per aggiungere altri drinks</p>
+                <p className="text-sm font-bold text-brand-accent uppercase">{t('upload.drinks.successTitle')}</p>
+                <p className="text-[10px] opacity-60 uppercase tracking-tighter mt-1">{t('upload.drinks.successHint')}</p>
               </motion.div>
             ) : (
               <>
                 <Upload className="mx-auto mb-2 text-white/40" />
-                <p className="text-sm text-white/60">Trascina o clicca per caricare foto, PDF, Word o Excel dei drinks</p>
+                <p className="text-sm text-white/60">{t('upload.drinks.dropHint')}</p>
               </>
             )}
           </div>
@@ -256,7 +258,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
               <div className="flex justify-center mb-4">
                 <label className="text-[10px] uppercase font-bold tracking-widest bg-brand-accent/20 text-brand-accent px-4 py-2 rounded-full cursor-pointer hover:bg-brand-accent/30 transition-colors inline-flex items-center gap-2 border border-brand-accent/20">
                   <Upload size={12} />
-                  Aggiungi Altro File Drinks
+                  {t('upload.drinks.addMore')}
                   <input
                     type="file"
                     multiple
@@ -291,26 +293,26 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
           className="text-[10px] uppercase tracking-widest text-brand-accent hover:underline decoration-brand-accent/30"
           data-testid="test-data-btn"
         >
-          ⚡ Test con file di esempio
+          {t('upload.testData')}
         </button>
 
         {(menuFiles.length > 0 || drinksFiles.length > 0) && (
           <div className="text-xs uppercase tracking-widest text-white/40 bg-white/5 px-6 py-2 rounded-full border border-white/10">
-            Pronto per l'estrazione: <span className="text-brand-accent font-bold">{menuFiles.length} menu</span> e <span className="text-brand-accent font-bold">{drinksFiles.length} drinks</span>
+            {t('upload.status.label')} <span className="text-brand-accent font-bold">{t('upload.status.menuCount', { count: menuFiles.length })}</span> {t('upload.status.separator')} <span className="text-brand-accent font-bold">{t('upload.status.drinksCount', { count: drinksFiles.length })}</span>
           </div>
         )}
-        
+
         <div className="flex justify-between items-center w-full">
           <button onClick={onBack} className="text-white/60 hover:text-white underline underline-offset-4">
-            Indietro
+            {t('upload.back')}
           </button>
-          
+
           <button
             onClick={() => onNext(menuFiles, drinksFiles)}
             disabled={menuFiles.length === 0 || drinksFiles.length === 0}
             className={`btn-primary px-10 py-4 ${menuFiles.length > 0 && drinksFiles.length > 0 ? 'animate-pulse' : ''}`}
           >
-            CONFERMA E PROCEDI →
+            {t('upload.next')}
           </button>
         </div>
       </div>
