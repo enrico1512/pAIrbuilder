@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { UtensilsCrossed, Loader2, ChevronDown, User, Mail, Info, Settings, LogOut, AlertCircle, CheckCircle2, Zap, BrainCircuit } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Trans, useTranslation } from "react-i18next";
 import RestaurantOnboarding from "./components/RestaurantOnboarding";
 import MenuUpload from "./components/MenuUpload";
 import MenuReview from "./components/MenuReview";
@@ -15,6 +16,7 @@ import { learningService } from "./lib/learningService";
 type Step = "welcome" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
 
 export default function App() {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>("welcome");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -47,37 +49,13 @@ export default function App() {
   const [hasPartialResults, setHasPartialResults] = useState(false);
 
   const foodPhrases = {
-    counting: [
-      "Dioniso sta dando un'occhiata veloce ai tuoi piatti...",
-      "Scansiono gli antipasti... un attimo di pazienza!",
-      "Analisi dei primi piatti in corso...",
-      "Cerco segnali di delizie gourmet nel tuo menu...",
-      "Dioniso sta leggendo la lista dei piatti..."
-    ],
-    extracting: [
-      "Dioniso sta assaggiando virtualmente ogni ingrediente...",
-      "Sto preparando la cucina digitale per l'estrazione...",
-      "Analisi sensoriale dei dettagli in corso...",
-      "Sto trascrivendo le tue ricette nel database dell'Olimpo...",
-      "Un attimo, sto capendo la personalita' di ogni piatto..."
-    ]
+    counting: t('app.funPhrases.food.counting', { returnObjects: true }) as string[],
+    extracting: t('app.funPhrases.food.extracting', { returnObjects: true }) as string[]
   };
 
   const drinkPhrases = {
-    counting: [
-      "Dioniso sta sfogliando la tua cantina digitale...",
-      "Controllo i vitigni presenti nella tua lista...",
-      "Leggo etichette e regioni vinicole...",
-      "Identifico bollicine e rossi d'annata...",
-      "Dioniso sta contando le tue bottiglie migliori..."
-    ],
-    extracting: [
-      "Stappo virtualmente le informazioni piu' preziose...",
-      "L'AI sta decantando i dettagli tecnici dei tuoi vini...",
-      "Sto mettendo in fresco le bottiglie per l'abbinamento...",
-      "Analisi dei terroir e dei produttori in corso...",
-      "Un attimo, sto capendo il corpo e l'anima dei tuoi drinks..."
-    ]
+    counting: t('app.funPhrases.drinks.counting', { returnObjects: true }) as string[],
+    extracting: t('app.funPhrases.drinks.extracting', { returnObjects: true }) as string[]
   };
 
   const [currentScanningCounts, setCurrentScanningCounts] = useState({ dishes: 0, drinks: 0 });
@@ -219,7 +197,7 @@ export default function App() {
           setProcessingIndex(idx + 1);
           setExtractionMode("counting");
           setCurrentScanningCounts({ dishes: 0, drinks: 0 });
-          setCurrentExtractionItem("Analisi struttura menu...");
+          setCurrentExtractionItem(t('app.extracting.progress.menuStructure'));
           
           let textContent: string | undefined = undefined;
           let imageBase64: string | undefined = undefined;
@@ -262,7 +240,7 @@ export default function App() {
             totalItemsOnPage > 0 ? scan : undefined,
             (extractedDishes, extractedDrinks) => {
               if (extractedDishes > 0 || extractedDrinks > 0) {
-                setCurrentExtractionItem(`Trascrizione: ${extractedDishes + extractedDrinks} di ${totalItemsOnPage} completati...`);
+                setCurrentExtractionItem(t('app.extracting.progress.transcribing', { done: extractedDishes + extractedDrinks, total: totalItemsOnPage }));
                 setCurrentScanningCounts({ dishes: Math.max(foundDishes, extractedDishes), drinks: Math.max(foundDrinks, extractedDrinks) });
               }
             }
@@ -282,7 +260,7 @@ export default function App() {
         setProcessingIndex((isAddingDrinks ? 0 : menus.length) + idx + 1);
         setExtractionMode("counting");
         setCurrentScanningCounts({ dishes: 0, drinks: 0 });
-        setCurrentExtractionItem("Analisi carta dei vini...");
+        setCurrentExtractionItem(t('app.extracting.progress.drinkList'));
         
         let textContent: string | undefined = undefined;
         let imageBase64: string | undefined = undefined;
@@ -325,7 +303,7 @@ export default function App() {
           totalItemsOnPage > 0 ? scan : undefined,
           (extractedDishes, extractedDrinks) => {
             if (extractedDishes > 0 || extractedDrinks > 0) {
-              setCurrentExtractionItem(`Digitalizzazione: ${extractedDishes + extractedDrinks} di ${totalItemsOnPage} completati...`);
+              setCurrentExtractionItem(t('app.extracting.progress.digitalizing', { done: extractedDishes + extractedDrinks, total: totalItemsOnPage }));
               setCurrentScanningCounts({ dishes: Math.max(foundDishes, extractedDishes), drinks: Math.max(foundDrinks, extractedDrinks) });
             }
           }
@@ -364,7 +342,7 @@ export default function App() {
           setStep("review");
         }
       } else {
-        alert(error instanceof Error ? error.message : "C'e' stato un errore nell'estrazione dei dati. Riprova.");
+        alert(error instanceof Error ? error.message : t('app.errors.extractionFailed'));
         setStep("upload");
       }
     }
@@ -419,9 +397,9 @@ export default function App() {
         clearTimeout(timeoutId);
         console.error("Pairing error:", error);
         if (error instanceof Error && error.message === "TIMEOUT") {
-          alert("Operazione scaduta, riprova con meno file o piatti.");
+          alert(t('app.errors.timeout'));
         } else {
-          alert("C'e' stato un errore nella generazione degli abbinamenti.");
+          alert(t('app.errors.pairingFailed'));
         }
         setStep("review");
       }
@@ -434,8 +412,8 @@ export default function App() {
       <header className="grid grid-cols-3 items-center px-6 md:px-10 py-6 border-b border-white/10 z-10 bg-brand-bg/80 backdrop-blur-sm sticky top-0">
         <div className="flex items-center gap-4">
           <div className="text-left hidden lg:block">
-            <p className="text-[10px] uppercase tracking-widest opacity-60">Ristorante</p>
-            <p className="text-sm font-bold truncate max-w-[150px]">{restaurantData?.name || "L'Osteria"}</p>
+            <p className="text-[10px] uppercase tracking-widest opacity-60">{t('app.header.restaurantLabel')}</p>
+            <p className="text-sm font-bold truncate max-w-[150px]">{restaurantData?.name || t('app.header.restaurantFallback')}</p>
           </div>
         </div>
 
@@ -448,7 +426,7 @@ export default function App() {
             <DropdownMenu.Trigger asChild>
               <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-colors border border-white/10 outline-none">
                 <User size={18} className="text-brand-accent" />
-                <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">Menu</span>
+                <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">{t('app.header.menuTrigger')}</span>
                 <ChevronDown size={14} className="opacity-50" />
               </button>
             </DropdownMenu.Trigger>
@@ -463,30 +441,30 @@ export default function App() {
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
                   <BrainCircuit size={16} className="text-brand-accent" />
-                  <span>Chi siamo</span>
+                  <span>{t('app.dropdown.aboutUs')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 
                   onClick={() => { setInfoMode("how-it-works"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
                   <FlashIcon size={16} className="text-brand-accent" />
-                  <span>Come funziona</span>
+                  <span>{t('app.dropdown.howItWorks')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 
                   onClick={() => { setInfoMode("contact"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
                   <Mail size={16} className="text-brand-accent" />
-                  <span>Contatti</span>
+                  <span>{t('app.dropdown.contact')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
                 <DropdownMenu.Item className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors">
                   <Settings size={16} className="text-brand-accent" />
-                  <span>Profilo</span>
+                  <span>{t('app.dropdown.profile')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg outline-none cursor-pointer transition-colors mt-1">
                   <LogOut size={16} />
-                  <span>Esci</span>
+                  <span>{t('app.dropdown.logout')}</span>
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
@@ -511,51 +489,40 @@ export default function App() {
                     p<span className="text-white">AI</span>rbuilder
                   </h2>
                   <p className="text-xl text-white font-light max-w-xl mx-auto">
-                    Trasforma menu e carta vini in una carta abbinamenti pronta da stampare grazie alla tecnologia di Dionisus.ai
+                    {t('app.welcome.tagline')}
                   </p>
                 </div>
                 <button onClick={handleStart} className="btn-primary text-2xl px-12 py-4 mt-8">
-                  INIZIA ORA
+                  {t('app.welcome.cta')}
                 </button>
 
                 <div className="flex flex-col items-center">
                   <div className="max-w-4xl text-sm text-white/80 mt-10 leading-relaxed flex flex-col items-center gap-10">
                     {/* Sezione Perche' Funziona */}
                     <div className="w-full space-y-6">
-                      <h3 className="text-3xl font-display text-brand-accent uppercase tracking-tight text-center font-normal">Perche' funziona</h3>
+                      <h3 className="text-3xl font-display text-brand-accent uppercase tracking-tight text-center font-normal">{t('app.welcome.whyHeading')}</h3>
                       <div className="grid md:grid-cols-3 gap-6 text-left">
                         <div className="glass-panel p-6 border-brand-accent/20 bg-brand-accent/5">
-                          <p className="text-white/80">
-                            PairBuilder non si limita a creare abbinamenti: trasforma menu e carta vini in uno strumento di vendita concreto, aiutando il ristorante a valorizzare le bottiglie con maggiore margine, migliorare la rotazione del magazzino e supportare il lavoro del sommelier con suggerimenti coerenti, immediati e pronti per il servizio.
-                          </p>
+                          <p className="text-white/80">{t('app.welcome.whyCard1')}</p>
                         </div>
                         <div className="glass-panel p-6 border-brand-accent/20 bg-brand-accent/5">
-                          <p className="text-white/80">
-                            Perche' ogni abbinamento viene costruito partendo dalla tua carta vini reale e dalle priorita' del locale, permettendo di mettere in evidenza le etichette strategiche, ridurre le giacenze e offrire ai clienti un’esperienza piu' curata senza aumentare il carico operativo della sala.
-                          </p>
+                          <p className="text-white/80">{t('app.welcome.whyCard2')}</p>
                         </div>
                         <div className="glass-panel p-6 border-brand-accent/20 bg-brand-accent/5">
-                          <p className="text-white/80">
-                            Perche' PairBuilder unisce la logica del food pairing alla strategia commerciale del ristorante: crea una carta abbinamenti pronta da stampare che aiuta il personale a consigliare meglio i vini, rende piu' semplice valorizzare la cantina e trasforma la wine list in un vero motore di upselling.
-                          </p>
+                          <p className="text-white/80">{t('app.welcome.whyCard3')}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Sezione Come Funziona (Tecnologia) */}
                     <div className="max-w-2xl text-center space-y-6 pt-10 border-t border-white/10">
-                      <h3 className="text-3xl font-display text-brand-accent uppercase tracking-tight font-normal">Come funziona</h3>
-                      <p className="text-white/80">
-                        PAIRBUILDER esegue una scansione molecolare del tuo menu per identificare ingredienti e profili di gusto. 
-                        Utilizzando le logiche di Concordanza e Contrapposizione, incrocia questi dati con la tua cantina 
-                        per creare l'esperienza perfetta per i tuoi ospiti. Puoi anche dare priorita' a specifiche etichette 
-                        per obiettivi strategici.
-                      </p>
-                      <button 
+                      <h3 className="text-3xl font-display text-brand-accent uppercase tracking-tight font-normal">{t('app.welcome.howHeading')}</h3>
+                      <p className="text-white/80">{t('app.welcome.howDescription')}</p>
+                      <button
                         onClick={() => { setInfoMode("how-it-works"); setStep("about"); }}
                         className="text-brand-accent hover:underline text-xs font-bold uppercase tracking-wider"
                       >
-                        Scopri di piu'
+                        {t('app.welcome.discoverMore')}
                       </button>
                     </div>
                   </div>
@@ -585,10 +552,10 @@ export default function App() {
                 <div className="text-center space-y-4">
                   <div className="space-y-1">
                     <h2 className="text-4xl uppercase font-display tracking-tight font-normal">
-                      {extractionMode === "counting" ? "Scansionando..." : "Estraendo..."}
+                      {extractionMode === "counting" ? t('app.extracting.headingCounting') : t('app.extracting.headingExtracting')}
                     </h2>
                     <p className="text-white/60 italic text-lg">"{funPhrase}"</p>
-                    <p className="text-white/40 text-sm">Pagina {processingIndex} di {totalFilesCount}</p>
+                    <p className="text-white/40 text-sm">{t('app.extracting.pageOf', { current: processingIndex, total: totalFilesCount })}</p>
                   </div>
                   
                   {currentExtractionItem && (
@@ -615,18 +582,18 @@ export default function App() {
                       <div className="text-3xl font-display text-brand-accent leading-none">
                         {foodResults.reduce((acc, p) => acc + p.dishes.length, 0) + currentScanningCounts.dishes}
                       </div>
-                      <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1">Piatti</div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1">{t('app.extracting.counter.dishes')}</div>
                     </div>
                     <div className="text-center">
                       <div className="text-3xl font-display text-brand-accent leading-none">
                         {[...foodResults, ...drinkResults].reduce((acc, p) => acc + (p.drinks?.length || 0), 0) + currentScanningCounts.drinks}
                       </div>
-                      <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1">Drinks</div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1">{t('app.extracting.counter.drinks')}</div>
                     </div>
                   </div>
-                  
+
                   <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 animate-pulse">
-                    {extractionMode === "counting" ? "Individuo piatti e vini" : "Conversione in digitale"}
+                    {extractionMode === "counting" ? t('app.extracting.statusCounting') : t('app.extracting.statusExtracting')}
                   </p>
                 </div>
               </motion.div>
@@ -649,8 +616,8 @@ export default function App() {
               >
                 <Loader2 className="animate-spin text-brand-accent" size={64} />
                 <div className="text-center space-y-2">
-                  <h2 className="text-4xl uppercase">Sto creando la magia...</h2>
-                  <p className="text-white/60 italic font-display text-xl">Dioniso sta analizzando i sapori e le note dei tuoi drinks.</p>
+                  <h2 className="text-4xl uppercase">{t('app.loading.title')}</h2>
+                  <p className="text-white/60 italic font-display text-xl">{t('app.loading.subtitle')}</p>
                 </div>
               </motion.div>
             )}
@@ -679,13 +646,17 @@ export default function App() {
                   <div className="mx-auto w-20 h-20 flex items-center justify-center text-brand-accent mb-6">
                     <FlashIcon size={64} />
                   </div>
-                  <h2 className="text-4xl font-display uppercase tracking-tight font-normal">Estrazione parziale completata</h2>
+                  <h2 className="text-4xl font-display uppercase tracking-tight font-normal">{t('app.addDrinks.title')}</h2>
                   <div className="space-y-4 max-w-2xl mx-auto">
                     <p className="text-lg text-white/70">
-                      Dioniso ha processato parte dei tuoi file. Abbiamo estratto <strong>{extractedDishesMemory.length}</strong> piatti e <strong>{extractedDrinksMemory.length}</strong> drinks finora.
+                      <Trans
+                        i18nKey="app.addDrinks.summary"
+                        values={{ dishes: extractedDishesMemory.length, drinks: extractedDrinksMemory.length }}
+                        components={{ 1: <strong />, 3: <strong /> }}
+                      />
                     </p>
                     <div className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-xl border border-white/10">
-                      <p className="text-sm font-bold uppercase tracking-widest text-brand-accent">File drinks rimanenti ({pendingDrinkFiles.length}):</p>
+                      <p className="text-sm font-bold uppercase tracking-widest text-brand-accent">{t('app.addDrinks.remainingHeading', { count: pendingDrinkFiles.length })}</p>
                       <ul className="text-xs space-y-1 opacity-60">
                         {pendingDrinkFiles.map((f, i) => (
                           <li key={i}>{f.name}</li>
@@ -700,19 +671,19 @@ export default function App() {
                       className="btn-primary flex items-center gap-2 px-8 py-4"
                     >
                       <Loader2 size={18} className="animate-spin" />
-                      Continua con i file rimanenti
+                      {t('app.addDrinks.continueButton')}
                     </button>
-                    <button 
+                    <button
                       onClick={() => setStep("review")}
                       className="glass-panel px-8 py-4 hover:bg-white/10 transition-colors uppercase text-sm font-bold tracking-widest border-white/10"
                     >
-                      Vai ai risultati con i dati attuali
+                      {t('app.addDrinks.skipButton')}
                     </button>
                   </div>
                   
                   <div className="pt-4">
                     <label className="cursor-pointer text-xs font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity underline decorate-brand-accent">
-                      Aggiungi altri file drinks
+                      {t('app.addDrinks.addMoreLink')}
                       <input 
                         type="file" 
                         multiple 
@@ -729,19 +700,19 @@ export default function App() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="glass-panel p-4 text-center">
-                    <p className="text-[10px] uppercase opacity-40 mb-1">Menu Caricato</p>
+                    <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.menuUploaded')}</p>
                     <p className="text-sm font-bold truncate">{restaurantData?.name}</p>
                   </div>
                   <div className="glass-panel p-4 text-center">
-                    <p className="text-[10px] uppercase opacity-40 mb-1">Piatti Estratti</p>
+                    <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.dishesExtracted')}</p>
                     <p className="text-xl font-display text-brand-accent">{extractedDishesMemory.length}</p>
                   </div>
                   <div className="glass-panel p-4 text-center">
-                    <p className="text-[10px] uppercase opacity-40 mb-1">Drinks Estratti</p>
+                    <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.drinksExtracted')}</p>
                     <p className="text-xl font-display text-brand-accent">{extractedDrinksMemory.length}</p>
                   </div>
                   <div className="glass-panel p-4 text-center">
-                    <p className="text-[10px] uppercase opacity-40 mb-1">File Rimanenti</p>
+                    <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.filesRemaining')}</p>
                     <p className="text-xl font-display text-brand-accent">{pendingDrinkFiles.length}</p>
                   </div>
                 </div>
@@ -756,7 +727,7 @@ export default function App() {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-            <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">AI Engine Active v3.2</span>
+            <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">{t('app.footer.aiEngine')}</span>
           </div>
           {configStatus && (
             <div className="flex items-center gap-2 group cursor-help relative">
@@ -768,7 +739,7 @@ export default function App() {
                 <CheckCircle2 size={12} className="text-green-500" />
               )}
               <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
-                AI Mode: {configStatus.status}
+                {t('app.footer.aiModeLabel', { status: configStatus.status })}
               </span>
               <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
                 {configStatus.message}
@@ -779,12 +750,12 @@ export default function App() {
         
         <div className="text-center">
           <p className="text-3xl md:text-5xl font-normal tracking-tighter text-brand-accent uppercase opacity-90 font-display whitespace-nowrap">
-            bevi da Dio
+            {t('app.footer.tagline')}
           </p>
         </div>
         
         <div className="text-[10px] opacity-40 uppercase tracking-widest text-right">
-          © 2024 pAIrbuilder
+          {t('app.footer.copyright')}
         </div>
       </footer>
     </div>

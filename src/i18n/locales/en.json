@@ -144,6 +144,111 @@
       "pendingDiscard": "You have {{pending}} as unsaved draft(s). Proceeding will discard them. Continue anyway?"
     }
   },
+  "app": {
+    "header": {
+      "restaurantLabel": "Restaurant",
+      "restaurantFallback": "The Tavern",
+      "menuTrigger": "Menu"
+    },
+    "dropdown": {
+      "aboutUs": "About us",
+      "howItWorks": "How it works",
+      "contact": "Contact",
+      "profile": "Profile",
+      "logout": "Log out"
+    },
+    "welcome": {
+      "tagline": "Turn your food menu and wine list into a print-ready pairing menu, powered by Dionisus.ai",
+      "cta": "START NOW",
+      "whyHeading": "Why it works",
+      "whyCard1": "PairBuilder doesn't just create pairings: it turns your menu and wine list into a real sales tool, helping the restaurant showcase higher-margin bottles, improve stock rotation, and back up the sommelier with coherent, immediate suggestions ready for service.",
+      "whyCard2": "Every pairing is built starting from your actual wine list and the venue's priorities, letting you highlight strategic labels, reduce stock, and offer guests a more curated experience without adding workload to the floor.",
+      "whyCard3": "PairBuilder combines food-pairing logic with the restaurant's commercial strategy: it creates a print-ready pairing menu that helps the staff recommend wines better, makes it easier to showcase the cellar, and turns the wine list into a real upselling engine.",
+      "howHeading": "How it works",
+      "howDescription": "PAIRBUILDER performs a molecular scan of your menu to identify ingredients and flavor profiles. Using Concordance and Contrast logic, it cross-references this data with your cellar to craft the perfect experience for your guests. You can also prioritize specific labels for strategic goals.",
+      "discoverMore": "Discover more"
+    },
+    "extracting": {
+      "headingCounting": "Scanning...",
+      "headingExtracting": "Extracting...",
+      "pageOf": "Page {{current}} of {{total}}",
+      "progress": {
+        "menuStructure": "Analyzing menu structure...",
+        "drinkList": "Analyzing wine list...",
+        "transcribing": "Transcribing: {{done}} of {{total}} completed...",
+        "digitalizing": "Digitizing: {{done}} of {{total}} completed..."
+      },
+      "counter": {
+        "dishes": "Dishes",
+        "drinks": "Drinks"
+      },
+      "statusCounting": "Detecting dishes and wines",
+      "statusExtracting": "Converting to digital"
+    },
+    "loading": {
+      "title": "Working the magic...",
+      "subtitle": "Dioniso is analyzing the flavors and notes of your drinks."
+    },
+    "addDrinks": {
+      "title": "Partial extraction complete",
+      "summary": "Dioniso processed part of your files. We've extracted <1>{{dishes}}</1> dishes and <3>{{drinks}}</3> drinks so far.",
+      "remainingHeading": "Remaining drink files ({{count}}):",
+      "continueButton": "Continue with remaining files",
+      "skipButton": "Go to results with current data",
+      "addMoreLink": "Add more drink files",
+      "stats": {
+        "menuUploaded": "Menu Uploaded",
+        "dishesExtracted": "Dishes Extracted",
+        "drinksExtracted": "Drinks Extracted",
+        "filesRemaining": "Files Remaining"
+      }
+    },
+    "footer": {
+      "aiEngine": "AI Engine Active v3.2",
+      "aiModeLabel": "AI Mode: {{status}}",
+      "tagline": "drink like a god",
+      "copyright": "© 2024 pAIrbuilder"
+    },
+    "errors": {
+      "extractionFailed": "Something went wrong while extracting the data. Please try again.",
+      "timeout": "Operation timed out, try again with fewer files or dishes.",
+      "pairingFailed": "Something went wrong while generating the pairings."
+    },
+    "funPhrases": {
+      "food": {
+        "counting": [
+          "Dionysus is taking a quick peek at your dishes...",
+          "Scanning the appetizers... just a moment!",
+          "Analyzing the first courses...",
+          "Searching for gourmet delights in your menu...",
+          "Dionysus is reading through the dish list..."
+        ],
+        "extracting": [
+          "Dionysus is virtually tasting every ingredient...",
+          "Firing up the digital kitchen for extraction...",
+          "Sensory analysis of every detail underway...",
+          "Transcribing your recipes into the Olympus database...",
+          "One moment — I'm getting to know the soul of each dish..."
+        ]
+      },
+      "drinks": {
+        "counting": [
+          "Dionysus is browsing your digital cellar...",
+          "Checking which grape varieties grace your list...",
+          "Reading labels and wine regions...",
+          "Spotting fine bubbles and vintage reds...",
+          "Dionysus is counting your finest bottles..."
+        ],
+        "extracting": [
+          "Virtually uncorking the most precious details...",
+          "The AI is decanting the technical notes of your wines...",
+          "Chilling the bottles for the perfect pairing...",
+          "Analyzing terroirs and producers...",
+          "One moment — I'm sensing the body and soul of your drinks..."
+        ]
+      }
+    }
+  },
   "pairing": {
     "dashboard": {
       "badge": "Pairings ready!",
