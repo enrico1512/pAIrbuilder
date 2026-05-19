@@ -510,7 +510,7 @@ ${isDrinks ? 'SOLO VINI: la lista "items" deve contenere ESCLUSIVAMENTE vini (ca
 
     const systemPrompt = `Sei un sommelier professionista italiano. Per ogni piatto fornito, crea 2 abbinamenti usando SOLO le bevande dalla lista fornita.
 Un abbinamento per "Concordanza" (gusti simili) e uno per "Contrapposizione" (contrasto).
-Rispondi SOLO con JSON: {"pairings": [{"dish": "nome piatto", "drinks": [{"name": "nome bevanda", "category": "categoria", "price": "prezzo o null", "description": "3 righe di descrizione in italiano senza accenti (usa apostrofo: e', a', o')", "matchType": "Concordanza|Contrapposizione"}, ...]}, ...]}
+Rispondi SOLO con JSON: {"pairings": [{"dish": "nome piatto", "drinks": [{"name": "nome bevanda", "category": "categoria", "price": "prezzo o null", "description": "3 righe di descrizione in italiano con accenti corretti (è, perché, città, qualità)", "matchType": "Concordanza|Contrapposizione"}, ...]}, ...]}
 USA SOLO bevande dalla lista. Non inventare. Processa TUTTI i piatti.`;
 
     try {

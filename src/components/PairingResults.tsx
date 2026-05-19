@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import type { Pairing } from "../lib/gemini";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { ensurePdfFont } from "../lib/pdfFonts";
 
 interface PairingResultsProps {
   pairings: Pairing[];
@@ -47,15 +48,18 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
     pairings.filter((_, i) => selectedIndices.has(i)),
   [pairings, selectedIndices]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const doc = new jsPDF() as any;
+    // Carica Liberation Sans con supporto Unicode (sostituisce Helvetica).
+    // Tutti i setFont(...) successivi devono usare il valore restituito.
+    const fontName = await ensurePdfFont(doc);
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 20;
     let cursorY = 30;
 
     // --- Centered Title ---
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontName, "bold");
     doc.setFontSize(20);
     doc.setTextColor(0);
     doc.text("Menu abbinamenti consigliati", pageWidth / 2, cursorY, { align: "center" });
@@ -74,7 +78,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
       }
 
       doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
+      doc.setFont(fontName, "bold");
       doc.setTextColor(140, 100, 40);
       doc.text(pairing.dish.toUpperCase(), margin, cursorY);
       cursorY += 6;
@@ -90,7 +94,9 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
         startY: cursorY,
         margin: { left: margin },
         theme: "plain",
-        styles: { fontSize: 8, cellPadding: 2 },
+        // styles.font deve coincidere con il font registrato sopra,
+        // altrimenti autotable ripiega sul default Helvetica perdendo gli accenti.
+        styles: { font: fontName, fontSize: 8, cellPadding: 2 },
         columnStyles: {
           0: { fontStyle: "bold", cellWidth: 40 },
           1: { cellWidth: 30, fontStyle: "italic", textColor: [150, 150, 150] },
@@ -105,6 +111,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
+      doc.setFont(fontName, "normal");
       doc.setFontSize(7);
       doc.setTextColor(150);
       doc.text(`Pagina ${i} di ${totalPages}`, pageWidth - margin - 15, pageHeight - 10);
@@ -339,4 +346,3 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
     </div>
   );
 }
-

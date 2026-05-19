@@ -57,19 +57,19 @@ export function isWineCategory(category: string | undefined | null): boolean {
   return false;
 }
 
+/**
+ * Storicamente questa funzione rimuoveva tutti gli accenti dall'output AI
+ * sostituendoli con apostrofi (es. "città" → "citta'"), perché il PDF
+ * generato con il font Helvetica di jspdf non renderizzava i caratteri
+ * Unicode estesi correttamente.
+ *
+ * Da quando il PDF usa Liberation Sans (vedi src/lib/pdfFonts.ts) gli
+ * accenti possono essere preservati. La funzione resta come pass-through
+ * per compatibilità con i molti call-site esistenti — verrà rimossa del
+ * tutto in un secondo passaggio di cleanup dopo l'implementazione i18n.
+ */
 export function cleanAccents(text: string): string {
-  if (!text) return "";
-  return text
-    .replace(/[àáâãäå]/g, "a'")
-    .replace(/[èéêë]/g, "e'")
-    .replace(/[ìíîï]/g, "i'")
-    .replace(/[òóôõö]/g, "o'")
-    .replace(/[ùúûü]/g, "u'")
-    .replace(/[ÀÁÂÃÄÅ]/g, "A'")
-    .replace(/[ÈÉÊË]/g, "E'")
-    .replace(/[ÌÍÎÏ]/g, "I'")
-    .replace(/[ÒÓÔÕÖ]/g, "O'")
-    .replace(/[ÙÚÛÜ]/g, "U'");
+  return text ?? "";
 }
 
 async function safeGenerateContent(modelName: string, contents: any, config: any) {
@@ -713,32 +713,29 @@ export async function analyzeDrinksWithMenu(
 
   // 2. AI Strategic Consideration
   const prompt = `
-    DIONISO STRATEGIST v2 - AI SOMMELIER
+    DIONISO STRATEGIST v3 - AI SOMMELIER
     Analizza brevemente (max 250 caratteri) la carta dei vini e dei piatti forniti.
     Parla come Dioniso, un esperto AI Sommelier.
     Fornisci una "Considerazione Strategica" che aiuti il ristoratore a capire come valorizzare la cantina rispetto al menu.
-    
+
     REGOLE:
-    1. Lingua: Italiano.
-    2. NO ACCENTI (usa l'apostofro, es. perche', e', sara').
-    3. Sii professionale, autorevole e focalizzato sul business (margini, rotazione).
-    4. Inizia con una visione d'insieme della struttura dei drinks rispetto ai piatti.
-    5. NON usare mai il grassetto (**) nel testo.
+    1. Lingua: Italiano corretto, con accenti propri (è, perché, città, sarà). NON sostituire mai gli accenti con apostrofi.
+    2. Sii professionale, autorevole e focalizzato sul business (margini, rotazione).
+    3. Inizia con una visione d'insieme della struttura dei drinks rispetto ai piatti.
+    4. NON usare mai il grassetto (**) nel testo.
   `;
 
   const data = `PIATTI: ${dishes.map(d => d.name).join(", ")}\nDRINKS: ${drinks.map(d => `${d.producer} ${d.product} (${d.category})`).join(", ")}`;
 
-  const localCleanAccents = (t: string) =>
-    t.replace(/[àáâãäå]/g, "a'").replace(/[èéêë]/g, "e'").replace(/[ìíîï]/g, "i'")
-     .replace(/[òóôõö]/g, "o'").replace(/[ùúûü]/g, "u'").replace(/[ÀÁÂÃÄÅ]/g, "A'")
-     .replace(/[ÈÉÊË]/g, "E'").replace(/[ÌÍÎÏ]/g, "I'").replace(/[ÒÓÔÕÖ]/g, "O'")
-     .replace(/[ÙÚÛÜ]/g, "U'");
+  // Nota: lo storico localCleanAccents è stato rimosso. Il font Liberation Sans
+  // del PDF (vedi src/lib/pdfFonts.ts) supporta gli accenti nativamente, quindi
+  // il testo dell'AI può essere usato così com'è.
 
   const staticFallback = () => {
     const mainCat = topCategories[0]?.split("% ")[1] || "prodotti";
     return {
       stats,
-      strategy: localCleanAccents(`Dioniso rileva una forte presenza di ${mainCat}. Questa selezione si presta a sostenere la complessita' dei piatti in menu, offrendo l'opportunita' di spingere etichette con maggiore margine e migliorare la rotazione del magazzino.`)
+      strategy: `Dioniso rileva una forte presenza di ${mainCat}. Questa selezione si presta a sostenere la complessità dei piatti in menu, offrendo l'opportunità di spingere etichette con maggiore margine e migliorare la rotazione del magazzino.`
     };
   };
 
@@ -749,7 +746,7 @@ export async function analyzeDrinksWithMenu(
       { temperature: 0.5, maxOutputTokens: 150 }
     );
 
-    if (text) return { stats, strategy: localCleanAccents(text) };
+    if (text) return { stats, strategy: text };
 
     // Gemini returned empty → use static fallback
     console.warn("[analyzeDrinksWithMenu] Gemini empty, using static fallback...");
@@ -800,7 +797,7 @@ export async function generatePairings(
       4. You MUST use ONLY drinks from the provided DRINKS LIST. Never invent drinks not in the list. If no suitable drink exists, use the closest available one.
       5. Each description MUST be exactly 3 lines long.
       6. Language: Force ALL descriptions into the user's language (${lang}). NEVER use English unless the system language is English.
-      7. STYLE RULE (CRITICAL): Eliminate all accented characters from descriptions (e.g., use 'e\'' instead of 'è', 'perche\'' instead of 'perché', 'citta\'' instead of 'città'). 
+      7. STYLE RULE (CRITICAL): Use proper accented characters of the target language (è, é, à, ù, î, ç, ñ, etc.). Do NOT replace accents with apostrophes — write 'perché', 'città', 'château', 'élevé' correctly.
       8. Tone: Academic but evocative (AIS style), mention dish ingredients, use a tone that makes the guest dream.
       
       Return a JSON array of: { dish, drinks: [{ name, category, price, description, matchType }] }
@@ -888,5 +885,3 @@ export async function generatePairings(
 
   return allPairings;
 }
-
-
