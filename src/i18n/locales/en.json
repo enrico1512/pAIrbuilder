@@ -249,6 +249,82 @@
       }
     }
   },
+  "about": {
+    "back": "Back",
+    "footer": "© 2024 Dionisus AI Digital Ecosystem",
+    "howItWorks": {
+      "title": "The Algorithm<1/><2>of Taste</2>",
+      "subtitle": "PAIRBUILDER doesn't just read data. It interprets the soul of your menu to create sensory connections once reserved for the greatest Sommeliers.",
+      "molecularBalance": {
+        "heading": "Molecular Balance",
+        "p1": "Dionisus AI performs a <1>bio-aromatic scan</1>. Every ingredient is broken down into its chemical descriptors: fattiness, acidic tendency, savoriness, succulence and persistence.",
+        "p2": "At the same time, we de-structure your cellar by analyzing each label by body, tannins, alcohol and residual sugar. The algorithm isn't just matching by name — it calculates the <1>physical balance</1> between food and wine."
+      },
+      "concordance": {
+        "label": "CONCORDANCE",
+        "description": "The AI aligns the intensities. A structured dish calls for a full-bodied wine. A sweet dessert calls for a wine with more sugar."
+      },
+      "contrast": {
+        "label": "CONTRAST",
+        "description": "The AI cleanses the palate. The wine's savoriness offsets the fattiness of the food. Acidity cuts through richness, resetting the taste buds with every bite."
+      },
+      "professionalOutput": {
+        "heading": "Professional Output",
+        "paragraph": "From theory to the table. The system instantly generates an <1>elegant PDF document</1> ready to be presented to your guests as a special insert to your menu.",
+        "pill1": "Change your menu in seconds, not hours.",
+        "pill2": "Upselling guided by scientific principles."
+      },
+      "priorityIntelligence": {
+        "heading": "Priority Intelligence",
+        "p1": "Your commercial goals are part of our code. With the <1>Priority Management</1> system, you can guide the AI.",
+        "p2": "By flagging your strategic bottles (new arrivals, overstock, or premium references), the algorithm will prioritize the best possible pairing among these picks."
+      },
+      "cta": {
+        "title": "Want to automate the experience?",
+        "description": "PAIRBUILDER is the perfect tool for your printable pairings. But if you want an interactive <1>Digital Wine List</1> that sells itself, discover Ambrosiavino.",
+        "button": "Switch to Ambrosiavino",
+        "tagline": "The professional evolution of your beverage design"
+      }
+    },
+    "aboutUs": {
+      "title": "Dionisus<1/><2>AI Ecosystem</2>",
+      "subtitle": "We are pioneers of Artificial Intelligence applied to the Food & Beverage world. We turn data into emotion, and service into operational excellence.",
+      "beyondCode": {
+        "heading": "Beyond Code",
+        "p1": "The <1>Dionisus AI</1> ecosystem was born from the vision of uniting the ancient tradition of hospitality with the frontiers of evolved intelligence. We don't build mere software — we build digital collaborators that exponentially amplify professional capabilities.",
+        "p2": "Our mission is to break down the barriers between technology and taste, making fine sommellerie accessible and scalable for every modern restaurant operation."
+      },
+      "team": {
+        "heading": "Our Team",
+        "p1": "We are a multidisciplinary group where <1>oenological excellence</1> meets <3>cutting-edge software development</3>.",
+        "p2": "Our team is made up of <1>Oenologists</1> and engineers specialized in Artificial Intelligence and Machine Learning, working in synergy to decode the language of taste into precise algorithms."
+      },
+      "ecosystem": {
+        "heading": "Digital F&B DNA",
+        "ambrosiavinoDescription": "The flagship of our ecosystem. Much more than a digital menu: <1>Ambrosiavino</1> is an intelligence tool that analyzes customer profiles and maximizes cellar rotation through predictive recommendation algorithms.",
+        "ambrosiavinoLink": "Explore Ambrosiavino.com",
+        "dionisusDescription": "The technological core of the ecosystem. <1>Dionisus.ai</1> integrates real-time market analysis, intelligent cost management, and marketing automation tools designed specifically to scale modern restaurant success.",
+        "dionisusLink": "Visit Dionisus.ai",
+        "footer": "Dionisus AI constantly monitors global F&B trends to develop tools that turn data complexity into ease of use and profit for the restaurateur."
+      }
+    },
+    "contact": {
+      "title": "Let's<1/><2>Talk</2>",
+      "subtitle": "Got technical questions or want to integrate our technologies into your restaurant? We're here for that.",
+      "hq": {
+        "heading": "Headquarters",
+        "description": "The beating heart of Dionisus AI.<1/>Italian innovation for the global market."
+      },
+      "feedback": {
+        "label": "Feedback",
+        "description": "Your suggestions guide our AI"
+      },
+      "development": {
+        "label": "Development",
+        "description": "Custom API for large F&B groups"
+      }
+    }
+  },
   "pairing": {
     "dashboard": {
       "badge": "Pairings ready!",
