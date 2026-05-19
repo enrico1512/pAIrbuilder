@@ -17,6 +17,18 @@ import {
   drinks,
   contacts,
 } from './db/schema';
+import {
+  getLang,
+  tError,
+  extractSystemPrompt,
+  listItemsSystemPrompt,
+  menuScanSystemPrompt,
+  menuScanFallbackUserText,
+  menuExtractSystemPrompt,
+  menuExtractUserPrefix,
+  pairingsSystemPrompt,
+  pairingsUserPrefix,
+} from './server/i18n';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,7 +70,7 @@ async function startServer() {
 
   function requireAuth(req: Request, res: Response, next: NextFunction) {
     if (!req.session.userId || !req.session.restaurantId) {
-      return res.status(401).json({ error: 'Non autenticato' });
+      return res.status(401).json({ error: tError(getLang(req), 'notAuth') });
     }
     next();
   }
@@ -72,7 +84,7 @@ async function startServer() {
       if (!restaurantName || !slug || !email || !password) {
         return res
           .status(400)
-          .json({ error: 'Mancano campi: restaurantName, slug, email, password' });
+          .json({ error: tError(getLang(req), 'missingFields', { fields: 'restaurantName, slug, email, password' }) });
       }
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
       const [restaurant] = await db
@@ -96,7 +108,7 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('Register error:', err);
-      res.status(500).json({ error: err?.message || 'Registrazione fallita' });
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'registrationFailed') });
     }
   });
 
@@ -104,12 +116,12 @@ async function startServer() {
     try {
       const { email, password } = req.body || {};
       if (!email || !password) {
-        return res.status(400).json({ error: 'email e password richiesti' });
+        return res.status(400).json({ error: tError(getLang(req), 'emailPasswordRequired') });
       }
       const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (!user) return res.status(401).json({ error: 'Credenziali errate' });
+      if (!user) return res.status(401).json({ error: tError(getLang(req), 'invalidCredentials') });
       const ok = await bcrypt.compare(password, user.passwordHash);
-      if (!ok) return res.status(401).json({ error: 'Credenziali errate' });
+      if (!ok) return res.status(401).json({ error: tError(getLang(req), 'invalidCredentials') });
       req.session.userId = user.id;
       req.session.restaurantId = user.restaurantId;
       await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
@@ -119,7 +131,7 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('Login error:', err);
-      res.status(500).json({ error: err?.message || 'Login fallito' });
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'loginFailed') });
     }
   });
 
@@ -129,7 +141,7 @@ async function startServer() {
 
   app.get('/api/auth/me', requireAuth, async (req, res) => {
     const [user] = await db.select().from(users).where(eq(users.id, req.session.userId!)).limit(1);
-    if (!user) return res.status(401).json({ error: 'Utente non trovato' });
+    if (!user) return res.status(401).json({ error: tError(getLang(req), 'userNotFound') });
     const [rest] = await db
       .select()
       .from(restaurants)
@@ -151,7 +163,7 @@ async function startServer() {
         const rows = await db.select().from(table).where(eq(table.restaurantId, rid));
         res.json(rows);
       } catch (err: any) {
-        res.status(500).json({ error: err?.message || 'Errore lettura' });
+        res.status(500).json({ error: err?.message || tError(getLang(req), 'readFailed') });
       }
     });
 
@@ -165,7 +177,7 @@ async function startServer() {
           .returning();
         res.json(row);
       } catch (err: any) {
-        res.status(500).json({ error: err?.message || 'Errore inserimento' });
+        res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
       }
     });
 
@@ -178,10 +190,10 @@ async function startServer() {
           .set(payload)
           .where(and(eq(table.id, req.params.id), eq(table.restaurantId, rid)))
           .returning();
-        if (!row) return res.status(404).json({ error: 'Non trovato' });
+        if (!row) return res.status(404).json({ error: tError(getLang(req), 'notFound') });
         res.json(row);
       } catch (err: any) {
-        res.status(500).json({ error: err?.message || 'Errore aggiornamento' });
+        res.status(500).json({ error: err?.message || tError(getLang(req), 'updateFailed') });
       }
     });
 
@@ -192,10 +204,10 @@ async function startServer() {
           .delete(table)
           .where(and(eq(table.id, req.params.id), eq(table.restaurantId, rid)))
           .returning();
-        if (!row) return res.status(404).json({ error: 'Non trovato' });
+        if (!row) return res.status(404).json({ error: tError(getLang(req), 'notFound') });
         res.json({ ok: true });
       } catch (err: any) {
-        res.status(500).json({ error: err?.message || 'Errore eliminazione' });
+        res.status(500).json({ error: err?.message || tError(getLang(req), 'deleteFailed') });
       }
     });
   }
@@ -237,7 +249,7 @@ async function startServer() {
     const { model, contents, config } = req.body;
     const API_KEY = process.env.GEMINI_API_KEY;
     if (!API_KEY) {
-      return res.status(500).json({ error: 'Missing Gemini API Key on server.' });
+      return res.status(500).json({ error: tError(getLang(req), 'missingGeminiKey') });
     }
     try {
       const genai = new GoogleGenAI({ apiKey: API_KEY });
@@ -257,7 +269,7 @@ async function startServer() {
     const { image } = req.body;
     const API_KEY = process.env.GOOGLE_CLOUD_VISION_API_KEY;
     if (!API_KEY) {
-      return res.status(500).json({ error: 'Missing Vision API Key on server.' });
+      return res.status(500).json({ error: tError(getLang(req), 'missingVisionKey') });
     }
     try {
       const response = await fetch(
@@ -297,13 +309,13 @@ async function startServer() {
   app.post('/api/openai/extract', async (req, res) => {
     const { prompt, data, image } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key on server.' });
+    if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     try {
+      const lang = getLang(req);
       const messages: any[] = [
         {
           role: 'system',
-          content:
-            'Sei un esperto sommelier e digitalizzatore di menu. Rispondi sempre in formato JSON valido.',
+          content: extractSystemPrompt(lang),
         },
         {
           role: 'user',
@@ -338,13 +350,13 @@ async function startServer() {
   app.post('/api/openai/list-items', async (req, res) => {
     const { prompt, data, image } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key on server.' });
+    if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     try {
+      const lang = getLang(req);
       const messages: any[] = [
         {
           role: 'system',
-          content:
-            'Sei un assistente AI specializzato nel rilevamento di voci in menu di ristoranti. Rispondi in JSON.',
+          content: listItemsSystemPrompt(lang),
         },
         {
           role: 'user',
@@ -380,7 +392,8 @@ async function startServer() {
   app.post('/api/openai/menu-scan', async (req, res) => {
     const { text, images, allowPizzas } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key.' });
+    if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
+    const lang = getLang(req);
 
     const imageList: string[] = Array.isArray(images)
       ? images
@@ -389,14 +402,7 @@ async function startServer() {
       : [];
     const hasImages = imageList.length > 0;
 
-    const systemPrompt = `Sei un esperto di menu di ristoranti italiani. Il tuo compito è identificare OGNI voce di cibo e OGNI VINO presente nel testo o nelle immagini fornite.
-REGOLE:
-- Estrai TUTTI i piatti (antipasti, primi, secondi, contorni, dessert${allowPizzas ? ', pizze' : ''}).
-- SOLO VINI per la lista "drinks": vini rossi, bianchi, rosati, bollicine/spumanti/champagne/prosecco/franciacorta, vini dolci/passiti/moscato, vini liquorosi (marsala, porto). IGNORA COMPLETAMENTE birre, cocktail, distillati (whisky, gin, rum, vodka, tequila, grappa), liquori, amari, digestivi, aperitivi non a base vino (aperol, campari), soft drink, succhi, acqua, caffè, tè. Se una sezione si chiama "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", SALTALA INTERAMENTE.
-${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esattamente come scritti nel menu.
-- Rispondi SOLO con JSON valido nel formato: {"dishes": ["nome1", "nome2", ...], "drinks": ["nome1", "nome2", ...]}
-- NON aggiungere prezzi, descrizioni o altri campi. Solo nomi come stringhe.
-- Se ci sono più immagini, analizzale TUTTE.`;
+    const systemPrompt = menuScanSystemPrompt(lang, !!allowPizzas);
 
     console.log(
       `[OpenAI menu-scan] input: text=${text?.length || 0} chars, images=${imageList.length} (${imageList
@@ -410,7 +416,7 @@ ${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esatta
         type: 'text',
         text: text
           ? `MENU:\n${text}`
-          : 'Estrai tutte le voci dal menu dalle immagini fornite.',
+          : menuScanFallbackUserText(lang),
       },
     ];
     for (const img of imageList) {
@@ -449,7 +455,8 @@ ${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esatta
   app.post('/api/openai/menu-extract', async (req, res) => {
     const { text, images, itemNames, type } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key.' });
+    if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
+    const lang = getLang(req);
 
     const imageList: string[] = Array.isArray(images)
       ? images
@@ -458,18 +465,12 @@ ${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esatta
       : [];
 
     const isDrinks = type === 'drinks';
-    const schema = isDrinks
-      ? `{"category": "Vino Rosso|Vino Bianco|Vino Rosato|Bollicine|Vino Dolce", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
-      : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "..."}`;
-
-    const systemPrompt = `Sei un esperto di menu di ristoranti. Estrai i dettagli delle voci indicate dal testo/immagini del menu.
-Rispondi SOLO con JSON: {"items": [${schema}, ...]}
-${isDrinks ? 'SOLO VINI: la lista "items" deve contenere ESCLUSIVAMENTE vini (categorie ammesse: Vino Rosso, Vino Bianco, Vino Rosato, Bollicine, Vino Dolce). Se una voce indicata NON e\' un vino (birra, cocktail, distillato, liquore, amaro, soft drink, ecc.), SALTALA e non includerla nell\'output.\n' : ''}Estrai TUTTE le ${itemNames?.length ?? 0} voci indicate (saltando solo quelle non valide come da regole sopra). NON saltare nessuna voce valida. Analizza tutte le immagini fornite.`;
+    const systemPrompt = menuExtractSystemPrompt(lang, isDrinks, itemNames?.length ?? 0);
 
     const userContent: any[] = [
       {
         type: 'text',
-        text: `Voci da estrarre: ${(itemNames || []).join(', ')}\n\nCONTENUTO:\n${text || 'Vedi immagini'}`,
+        text: menuExtractUserPrefix(lang, itemNames || []) + (text || (lang === 'en' ? 'See images' : 'Vedi immagini')),
       },
     ];
     for (const img of imageList) {
@@ -506,12 +507,11 @@ ${isDrinks ? 'SOLO VINI: la lista "items" deve contenere ESCLUSIVAMENTE vini (ca
   app.post('/api/openai/pairings', async (req, res) => {
     const { restaurantInfo, dishes, drinks: drinksList } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'Missing OpenAI API Key.' });
-
-    const systemPrompt = `Sei un sommelier professionista italiano. Per ogni piatto fornito, crea 2 abbinamenti usando SOLO le bevande dalla lista fornita.
-Un abbinamento per "Concordanza" (gusti simili) e uno per "Contrapposizione" (contrasto).
-Rispondi SOLO con JSON: {"pairings": [{"dish": "nome piatto", "drinks": [{"name": "nome bevanda", "category": "categoria", "price": "prezzo o null", "description": "3 righe di descrizione in italiano con accenti corretti (è, perché, città, qualità)", "matchType": "Concordanza|Contrapposizione"}, ...]}, ...]}
-USA SOLO bevande dalla lista. Non inventare. Processa TUTTI i piatti.`;
+    if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
+    const lang = getLang(req);
+    const systemPrompt = pairingsSystemPrompt(lang);
+    const drinksLabel = lang === 'en' ? 'AVAILABLE DRINKS' : 'BEVANDE DISPONIBILI';
+    const userContent = `${pairingsUserPrefix(lang, restaurantInfo)}${JSON.stringify(dishes)}\n\n${drinksLabel}: ${JSON.stringify(drinksList)}`;
 
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -521,10 +521,7 @@ USA SOLO bevande dalla lista. Non inventare. Processa TUTTI i piatti.`;
           model: 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
-            {
-              role: 'user',
-              content: `Ristorante: ${restaurantInfo}\n\nPIATTI: ${JSON.stringify(dishes)}\n\nBEVANDE DISPONIBILI: ${JSON.stringify(drinksList)}`,
-            },
+            { role: 'user', content: userContent },
           ],
           response_format: { type: 'json_object' },
           temperature: 0.1,

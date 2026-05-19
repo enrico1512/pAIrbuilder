@@ -28,4 +28,27 @@ void i18n
     returnNull: false,
   });
 
+// Attach the active i18n language to every /api request via X-App-Language.
+// Server reads it (server/i18n.ts → getLang) to localize error messages and
+// OpenAI system prompts. Idempotent — once installed, all fetches reflect
+// language changes at runtime without any per-callsite plumbing.
+if (typeof window !== 'undefined' && !(window as any).__pairbuilderFetchPatched) {
+  (window as any).__pairbuilderFetchPatched = true;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+    let url = '';
+    if (typeof input === 'string') url = input;
+    else if (input instanceof URL) url = input.toString();
+    else url = (input as Request).url || '';
+    const isApi = url.startsWith('/api/') || url.includes('://') === false && url.startsWith('/api');
+    if (!isApi) return originalFetch(input, init);
+    const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+    if (!headers.has('X-App-Language')) {
+      const lang = (i18n.resolvedLanguage || i18n.language || 'it').split('-')[0];
+      headers.set('X-App-Language', lang);
+    }
+    return originalFetch(input, { ...init, headers });
+  };
+}
+
 export default i18n;
