@@ -1,0 +1,18 @@
+# Normalizzazione fine-riga: tutti i file di testo usano LF nel repository.
+# Su Windows i tool che si aspettano CRLF (es. Notepad legacy) li gestiscono comunque;
+# Vite, Node, TypeScript, ESLint e Drizzle non hanno problemi con LF.
+
+* text=auto eol=lf
+
+# File binari espliciti (no normalizzazione)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
