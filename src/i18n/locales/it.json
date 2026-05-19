@@ -64,5 +64,84 @@
     },
     "back": "Indietro",
     "next": "CONFERMA E PROCEDI →"
+  },
+  "menuReview": {
+    "badge": "Dioniso Learning Mode Active",
+    "title": "Conferma Menu e Drinks",
+    "subtitle": "Controlla i dati estratti e clicca ed eventualmente apporta modifiche.",
+    "sectionHint": "controlla l'esattezza dei dati, puoi modificare o aggiungere piatti/drinks mancanti",
+    "analysis": {
+      "statsHeading": "Analisi della tua Carta",
+      "strategyHeading": "Considerazione Strategica",
+      "loadingStrategy": "Dioniso sta elaborando la strategia migliore per la tua cantina..."
+    },
+    "menu": {
+      "heading": "Menu Food",
+      "addButton": "Aggiungi",
+      "columns": {
+        "category": "Categoria",
+        "dish": "Piatto",
+        "ingredients": "Ingredienti"
+      },
+      "placeholders": {
+        "category": "Categoria",
+        "name": "Nome del piatto*",
+        "ingredients": "Ingredienti (opzionale)"
+      },
+      "empty": "Nessun piatto rilevato",
+      "zeroCount": "0 piatti"
+    },
+    "drinks": {
+      "heading": "La Tua Carta Drinks",
+      "addButton": "Aggiungi",
+      "columns": {
+        "category": "Categoria",
+        "producer": "Produttore",
+        "product": "Prodotto",
+        "price": "Prezzo",
+        "priority": "Priorità"
+      },
+      "placeholders": {
+        "vintage": "Annata",
+        "producer": "Produttore",
+        "name": "Nome del vino*",
+        "price": "Prezzo"
+      },
+      "empty": "Nessuna bevanda rilevata",
+      "categoryOptions": {
+        "redWine": "Vino Rosso",
+        "whiteWine": "Vino Bianco",
+        "roseWine": "Vino Rosato",
+        "sparkling": "Bollicine",
+        "sweetWine": "Vino Dolce"
+      },
+      "displayLabels": {
+        "wine": "Vino",
+        "beer": "Birra",
+        "cocktail": "Cocktail",
+        "nonAlcoholic": "Analcolico",
+        "coffee": "Caffetteria",
+        "generic": "Drink"
+      }
+    },
+    "draft": {
+      "notice": "Questa voce non è ancora stata aggiunta. Conferma per inserirla.",
+      "cancel": "Annulla",
+      "confirm": "Conferma"
+    },
+    "pagination": {
+      "prev": "Prec",
+      "next": "Succ",
+      "range": "{{start}}–{{end}} di {{total}}"
+    },
+    "finalize": "GENERA ABBINAMENTI PERFETTI",
+    "alerts": {
+      "priorityLimit": "Puoi selezionare al massimo 5 prodotti prioritari.",
+      "missingDishName": "Inserisci il nome del piatto prima di confermare.",
+      "missingDrinkName": "Inserisci il nome del vino (Prodotto) prima di confermare.",
+      "pendingDish": "un piatto",
+      "pendingDrink": "un vino",
+      "pendingDiscard": "Hai {{pending}} in bozza non ancora confermati. Se procedi verranno scartati. Vuoi continuare comunque?"
+    }
   }
 }

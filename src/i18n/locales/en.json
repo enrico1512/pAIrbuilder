@@ -64,5 +64,84 @@
     },
     "back": "Back",
     "next": "CONFIRM AND PROCEED →"
+  },
+  "menuReview": {
+    "badge": "Dioniso Learning Mode Active",
+    "title": "Confirm Menu and Drinks",
+    "subtitle": "Review the extracted data and click to edit if needed.",
+    "sectionHint": "check the accuracy of the data; you can edit or add missing dishes/drinks",
+    "analysis": {
+      "statsHeading": "Your List Analysis",
+      "strategyHeading": "Strategic Consideration",
+      "loadingStrategy": "Dioniso is preparing the best strategy for your cellar..."
+    },
+    "menu": {
+      "heading": "Food Menu",
+      "addButton": "Add",
+      "columns": {
+        "category": "Category",
+        "dish": "Dish",
+        "ingredients": "Ingredients"
+      },
+      "placeholders": {
+        "category": "Category",
+        "name": "Dish name*",
+        "ingredients": "Ingredients (optional)"
+      },
+      "empty": "No dishes detected",
+      "zeroCount": "0 dishes"
+    },
+    "drinks": {
+      "heading": "Your Drinks List",
+      "addButton": "Add",
+      "columns": {
+        "category": "Category",
+        "producer": "Producer",
+        "product": "Product",
+        "price": "Price",
+        "priority": "Priority"
+      },
+      "placeholders": {
+        "vintage": "Vintage",
+        "producer": "Producer",
+        "name": "Wine name*",
+        "price": "Price"
+      },
+      "empty": "No drinks detected",
+      "categoryOptions": {
+        "redWine": "Red Wine",
+        "whiteWine": "White Wine",
+        "roseWine": "Rosé Wine",
+        "sparkling": "Sparkling",
+        "sweetWine": "Sweet Wine"
+      },
+      "displayLabels": {
+        "wine": "Wine",
+        "beer": "Beer",
+        "cocktail": "Cocktail",
+        "nonAlcoholic": "Soft drink",
+        "coffee": "Coffee & tea",
+        "generic": "Drink"
+      }
+    },
+    "draft": {
+      "notice": "This entry hasn't been added yet. Confirm to insert it.",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "pagination": {
+      "prev": "Prev",
+      "next": "Next",
+      "range": "{{start}}–{{end}} of {{total}}"
+    },
+    "finalize": "GENERATE PERFECT PAIRINGS",
+    "alerts": {
+      "priorityLimit": "You can select up to 5 priority products.",
+      "missingDishName": "Please enter the dish name before confirming.",
+      "missingDrinkName": "Please enter the wine name (Product) before confirming.",
+      "pendingDish": "a dish",
+      "pendingDrink": "a wine",
+      "pendingDiscard": "You have {{pending}} as unsaved draft(s). Proceeding will discard them. Continue anyway?"
+    }
   }
 }
