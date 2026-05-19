@@ -5,5 +5,32 @@
       "it": "Italiano",
       "en": "Inglese"
     }
+  },
+  "onboarding": {
+    "title": "IL TUO LOCALE",
+    "subtitle": "Inserisci i tuoi dati per ricevere il pairing via mail e usalo per migliorare il servizio in sala",
+    "logo": {
+      "upload": "Carica il Logo",
+      "formats": "(.jpg, .PDF, .svg, .JPEG)"
+    },
+    "fields": {
+      "name": {
+        "label": "Nome Locale",
+        "placeholder": "es. L'OSTERIA MODERNA"
+      },
+      "type": {
+        "label": "Tipo di Cucina",
+        "placeholder": "es. TRADIZIONE ITALIANA"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "info@ristorante.it"
+      },
+      "phone": {
+        "label": "Telefono",
+        "placeholder": "+39 012 345678"
+      }
+    },
+    "submit": "carica il tuo menu"
   }
 }

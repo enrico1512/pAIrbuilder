@@ -5,5 +5,32 @@
       "it": "Italian",
       "en": "English"
     }
+  },
+  "onboarding": {
+    "title": "YOUR VENUE",
+    "subtitle": "Enter your details to receive the pairing via email and use it to improve front-of-house service",
+    "logo": {
+      "upload": "Upload your logo",
+      "formats": "(.jpg, .PDF, .svg, .JPEG)"
+    },
+    "fields": {
+      "name": {
+        "label": "Venue name",
+        "placeholder": "ex. THE MODERN BISTRO"
+      },
+      "type": {
+        "label": "Cuisine type",
+        "placeholder": "ex. ITALIAN TRADITION"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "info@restaurant.com"
+      },
+      "phone": {
+        "label": "Phone",
+        "placeholder": "+1 555 123 4567"
+      }
+    },
+    "submit": "upload your menu"
   }
 }
