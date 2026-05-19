@@ -32,5 +32,37 @@
       }
     },
     "submit": "upload your menu"
+  },
+  "upload": {
+    "title": "YOUR MENUS",
+    "subtitle": "Upload your restaurant's documents to start the matching.",
+    "reset": "Reset",
+    "menu": {
+      "heading": "FOOD MENU",
+      "inputTitle": "Upload menu",
+      "addMore": "Add Another Menu File",
+      "successTitle": "Files uploaded successfully",
+      "successHint": "Click or drag to add more menus",
+      "dropHint": "Drag or click to upload photos, PDF, Word or Excel of the menu"
+    },
+    "drinks": {
+      "heading": "DRINKS LIST",
+      "inputTitle": "Upload drinks",
+      "addMore": "Add Another Drinks File",
+      "successTitle": "Drinks uploaded successfully",
+      "successHint": "Click or drag to add more drinks",
+      "dropHint": "Drag or click to upload photos, PDF, Word or Excel of the drinks"
+    },
+    "testData": "⚡ Try with sample files",
+    "status": {
+      "label": "Ready to extract:",
+      "menuCount_one": "{{count}} menu",
+      "menuCount_other": "{{count}} menus",
+      "drinksCount_one": "{{count}} drink",
+      "drinksCount_other": "{{count}} drinks",
+      "separator": "and"
+    },
+    "back": "Back",
+    "next": "CONFIRM AND PROCEED →"
   }
 }

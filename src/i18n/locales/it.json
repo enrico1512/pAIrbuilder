@@ -32,5 +32,37 @@
       }
     },
     "submit": "carica il tuo menu"
+  },
+  "upload": {
+    "title": "I TUOI MENU",
+    "subtitle": "Carica i documenti del tuo ristorante per iniziare il matching.",
+    "reset": "Resetta",
+    "menu": {
+      "heading": "MENU PIATTI",
+      "inputTitle": "Carica menu",
+      "addMore": "Aggiungi Altro File Menu",
+      "successTitle": "File caricati con successo",
+      "successHint": "Clicca o trascina per aggiungere altri menu",
+      "dropHint": "Trascina o clicca per caricare foto, PDF, Word o Excel del menu"
+    },
+    "drinks": {
+      "heading": "CARTA DRINKS",
+      "inputTitle": "Carica drinks",
+      "addMore": "Aggiungi Altro File Drinks",
+      "successTitle": "Drinks caricati con successo",
+      "successHint": "Clicca o trascina per aggiungere altri drinks",
+      "dropHint": "Trascina o clicca per caricare foto, PDF, Word o Excel dei drinks"
+    },
+    "testData": "⚡ Test con file di esempio",
+    "status": {
+      "label": "Pronto per l'estrazione:",
+      "menuCount_one": "{{count}} menu",
+      "menuCount_other": "{{count}} menu",
+      "drinksCount_one": "{{count}} drink",
+      "drinksCount_other": "{{count}} drinks",
+      "separator": "e"
+    },
+    "back": "Indietro",
+    "next": "CONFERMA E PROCEDI →"
   }
 }
