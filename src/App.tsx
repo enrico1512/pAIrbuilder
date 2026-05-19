@@ -9,6 +9,8 @@ import MenuReview from "./components/MenuReview";
 import PairingResults from "./components/PairingResults";
 import AboutSection, { type InfoMode } from "./components/AboutSection";
 import { FlashIcon } from "./components/FlashIcon";
+import LanguageSwitcher from "./components/LanguageSwitcher";
+import { toBcp47, currencyFor } from "./i18n/languageMap";
 import { generatePairings, extractMenuData, listItemNames, type Pairing, type Dish, type Drink } from "./lib/gemini";
 import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
@@ -16,7 +18,7 @@ import { learningService } from "./lib/learningService";
 type Step = "welcome" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState<Step>("welcome");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -77,9 +79,8 @@ export default function App() {
   }, [step, extractionMode, processingIndex, totalFilesCount]);
 
   const getUserContext = () => {
-    const lang = navigator.language || 'it-IT';
-    const currency = lang.includes('IT') || lang.includes('FR') || lang.includes('DE') || lang.includes('ES') ? '€' : '$';
-    return { lang, currency };
+    const active = i18n.resolvedLanguage || i18n.language || navigator.language || 'it';
+    return { lang: toBcp47(active), currency: currencyFor(active) };
   };
 
   const [configStatus, setConfigStatus] = useState<{ visionApiKeyPresent: boolean; status: string; message: string } | null>(null);
@@ -422,6 +423,7 @@ export default function App() {
         </div>
 
         <div className="flex justify-end items-center gap-4">
+          <LanguageSwitcher />
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-colors border border-white/10 outline-none">
