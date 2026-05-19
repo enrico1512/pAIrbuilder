@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Wine, Beer, Martini, Coffee, GlassWater, ChevronRight, LayoutGrid, List, Share2, Printer, Copy, Check, Scale, Contrast, CheckSquare, Square, ArrowRight, ArrowLeft } from "lucide-react";
 import { FlashIcon } from "./FlashIcon";
 import { useState, useMemo } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import type { Pairing } from "../lib/gemini";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -23,6 +24,7 @@ const TypeIcon = ({ category }: { category: string }) => {
 };
 
 export default function PairingResults({ pairings, restaurant, onReset }: PairingResultsProps) {
+  const { t } = useTranslation();
   const [activeDishIndex, setActiveDishIndex] = useState(0);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set(pairings.map((_, i) => i)));
   const [view, setView] = useState<'dashboard' | 'recap'>('dashboard');
@@ -62,7 +64,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
     doc.setFont(fontName, "bold");
     doc.setFontSize(20);
     doc.setTextColor(0);
-    doc.text("Menu abbinamenti consigliati", pageWidth / 2, cursorY, { align: "center" });
+    doc.text(t('pairing.pdf.title'), pageWidth / 2, cursorY, { align: "center" });
     cursorY += 8;
 
     doc.setDrawColor(200, 160, 100);
@@ -85,7 +87,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
 
       const body = pairing.drinks.map(d => [
         d.name,
-        d.matchType,
+        t(`pairing.matchType.${d.matchType}`, { defaultValue: d.matchType }),
         d.description
       ]);
 
@@ -114,11 +116,11 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
       doc.setFont(fontName, "normal");
       doc.setFontSize(7);
       doc.setTextColor(150);
-      doc.text(`Pagina ${i} di ${totalPages}`, pageWidth - margin - 15, pageHeight - 10);
-      doc.text("Generato con Dioniso Sommelier AI", margin, pageHeight - 10);
+      doc.text(t('pairing.pdf.pageFooter', { current: i, total: totalPages }), pageWidth - margin - 15, pageHeight - 10);
+      doc.text(t('pairing.pdf.signature'), margin, pageHeight - 10);
     }
 
-    doc.save("Menu_abbinamenti_consigliati.pdf");
+    doc.save(t('pairing.pdf.filename'));
   };
 
   if (!activePairing && view === 'dashboard') return null;
@@ -141,21 +143,21 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 <div className="flex items-start gap-3">
                   <FlashIcon size={18} className="text-brand-accent mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-white text-[11px] font-bold uppercase tracking-wide mb-1">Abbinamenti pronti!</p>
+                    <p className="text-white text-[11px] font-bold uppercase tracking-wide mb-1">{t('pairing.dashboard.badge')}</p>
                     <p className="text-white/60 text-[10px] leading-relaxed">
-                      Seleziona i piatti da includere nel menu finale, poi clicca <span className="text-brand-accent font-bold">Procedi al Recap</span> in fondo alla lista.
+                      <Trans i18nKey="pairing.dashboard.instruction" components={{ 1: <span className="text-brand-accent font-bold" /> }} />
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-brand-accent text-xs uppercase tracking-[0.2em] font-bold">Piatti Abbinati</h2>
-                <button 
+                <h2 className="text-brand-accent text-xs uppercase tracking-[0.2em] font-bold">{t('pairing.dashboard.listHeading')}</h2>
+                <button
                   onClick={toggleSelectAll}
                   className="text-[10px] uppercase font-bold text-white/40 hover:text-brand-accent transition-colors flex items-center gap-1"
                 >
-                  {selectedIndices.size === pairings.length ? 'Deseleziona' : 'Seleziona tutti'}
+                  {selectedIndices.size === pairings.length ? t('pairing.dashboard.deselectAll') : t('pairing.dashboard.selectAll')}
                 </button>
               </div>
               
@@ -181,7 +183,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className="text-[9px] opacity-40 uppercase tracking-widest font-bold truncate mb-1">
-                        {pairing.category || `Piatto ${i + 1}`}
+                        {pairing.category || t('pairing.dashboard.dishFallback', { n: i + 1 })}
                       </p>
                       <p className="font-bold text-sm leading-snug text-white">{pairing.dish}</p>
                     </div>
@@ -195,11 +197,11 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                   onClick={() => setView('recap')}
                   className="w-full py-3 bg-brand-accent text-brand-bg rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:grayscale disabled:scale-100"
                 >
-                  Procedi al Recap ({selectedIndices.size})
+                  {t('pairing.dashboard.proceedButton')} ({selectedIndices.size})
                   <ArrowRight size={14} />
                 </button>
                 <button onClick={onReset} className="w-full text-[10px] uppercase tracking-widest font-bold opacity-30 hover:opacity-100 transition-opacity">
-                  Ricomincia Match
+                  {t('pairing.dashboard.resetButton')}
                 </button>
               </div>
             </aside>
@@ -210,7 +212,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 <h2 className="text-4xl md:text-5xl font-normal text-white uppercase mb-2 leading-none font-display tracking-tight text-balance">{activePairing.dish}</h2>
                 <div className="flex items-center gap-2 text-brand-accent italic text-lg opacity-80 mt-4">
                   <FlashIcon size={20} className="text-brand-accent" />
-                  <span>Abbinamenti consigliati da Dioniso</span>
+                  <span>{t('pairing.dashboard.subtitle')}</span>
                 </div>
               </div>
 
@@ -219,7 +221,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 border-b border-brand-accent/20 pb-4">
                     <Scale className="text-brand-accent" size={20} />
-                    <h3 className="text-base font-display uppercase tracking-wider text-brand-accent">Concordanza</h3>
+                    <h3 className="text-base font-display uppercase tracking-wider text-brand-accent">{t('pairing.dashboard.concordanceHeading')}</h3>
                   </div>
                   {activePairing.drinks.filter(d => d.matchType === 'Concordanza').map((drink, j) => (
                     <motion.div
@@ -249,7 +251,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 border-b border-brand-accent/20 pb-4">
                     <Contrast className="text-brand-accent" size={20} />
-                    <h3 className="text-base font-display uppercase tracking-wider text-brand-accent">Contrasto</h3>
+                    <h3 className="text-base font-display uppercase tracking-wider text-brand-accent">{t('pairing.dashboard.contrastHeading')}</h3>
                   </div>
                   {activePairing.drinks.filter(d => d.matchType === 'Contrapposizione').map((drink, j) => (
                     <motion.div
@@ -295,9 +297,9 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                   <ArrowLeft size={24} />
                 </button>
                 <div>
-                  <h2 className="text-2xl font-display uppercase tracking-tight text-white mb-1">Recap Abbinamenti</h2>
+                  <h2 className="text-2xl font-display uppercase tracking-tight text-white mb-1">{t('pairing.recap.title')}</h2>
                   <p className="text-[10px] uppercase tracking-widest text-brand-accent font-bold">
-                    {selectedPairings.length} piatti selezionati per il menu finale
+                    {t('pairing.recap.selectedCount', { count: selectedPairings.length })}
                   </p>
                 </div>
               </div>
@@ -306,7 +308,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                 className="px-6 py-3 bg-brand-accent text-brand-bg rounded-full font-bold uppercase text-[10px] tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-xl shadow-brand-accent/20"
               >
                 <Printer size={16} />
-                Stampa Menu in PDF
+                {t('pairing.recap.printButton')}
               </button>
             </div>
 
@@ -326,7 +328,7 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                       {p.drinks.map((d, di) => (
                         <div key={di} className="bg-white/5 p-4 rounded-xl border border-white/10">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[8px] uppercase tracking-widest font-black text-brand-accent">{d.matchType}</span>
+                            <span className="text-[8px] uppercase tracking-widest font-black text-brand-accent">{t(`pairing.matchType.${d.matchType}`, { defaultValue: d.matchType })}</span>
                             <span className="text-[9px] opacity-40 uppercase">{d.category}</span>
                           </div>
                           <h4 className="text-lg font-display font-normal text-white uppercase tracking-tight mb-2">{d.name}</h4>

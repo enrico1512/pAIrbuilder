@@ -143,5 +143,36 @@
       "pendingDrink": "a wine",
       "pendingDiscard": "You have {{pending}} as unsaved draft(s). Proceeding will discard them. Continue anyway?"
     }
+  },
+  "pairing": {
+    "dashboard": {
+      "badge": "Pairings ready!",
+      "instruction": "Select the dishes to include in the final menu, then click <1>Proceed to Recap</1> at the bottom of the list.",
+      "listHeading": "Paired Dishes",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect",
+      "dishFallback": "Dish {{n}}",
+      "subtitle": "Pairings recommended by Dioniso",
+      "concordanceHeading": "Concordance",
+      "contrastHeading": "Contrast",
+      "proceedButton": "Proceed to Recap",
+      "resetButton": "Start Over"
+    },
+    "recap": {
+      "title": "Pairings Recap",
+      "selectedCount_one": "{{count}} dish selected for the final menu",
+      "selectedCount_other": "{{count}} dishes selected for the final menu",
+      "printButton": "Print Menu as PDF"
+    },
+    "matchType": {
+      "Concordanza": "Concordance",
+      "Contrapposizione": "Contrast"
+    },
+    "pdf": {
+      "title": "Recommended pairing menu",
+      "pageFooter": "Page {{current}} of {{total}}",
+      "signature": "Generated with Dioniso Sommelier AI",
+      "filename": "Recommended_pairing_menu.pdf"
+    }
   }
 }

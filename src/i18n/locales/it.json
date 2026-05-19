@@ -143,5 +143,36 @@
       "pendingDrink": "un vino",
       "pendingDiscard": "Hai {{pending}} in bozza non ancora confermati. Se procedi verranno scartati. Vuoi continuare comunque?"
     }
+  },
+  "pairing": {
+    "dashboard": {
+      "badge": "Abbinamenti pronti!",
+      "instruction": "Seleziona i piatti da includere nel menu finale, poi clicca <1>Procedi al Recap</1> in fondo alla lista.",
+      "listHeading": "Piatti Abbinati",
+      "selectAll": "Seleziona tutti",
+      "deselectAll": "Deseleziona",
+      "dishFallback": "Piatto {{n}}",
+      "subtitle": "Abbinamenti consigliati da Dioniso",
+      "concordanceHeading": "Concordanza",
+      "contrastHeading": "Contrasto",
+      "proceedButton": "Procedi al Recap",
+      "resetButton": "Ricomincia Match"
+    },
+    "recap": {
+      "title": "Recap Abbinamenti",
+      "selectedCount_one": "{{count}} piatto selezionato per il menu finale",
+      "selectedCount_other": "{{count}} piatti selezionati per il menu finale",
+      "printButton": "Stampa Menu in PDF"
+    },
+    "matchType": {
+      "Concordanza": "Concordanza",
+      "Contrapposizione": "Contrapposizione"
+    },
+    "pdf": {
+      "title": "Menu abbinamenti consigliati",
+      "pageFooter": "Pagina {{current}} di {{total}}",
+      "signature": "Generato con Dioniso Sommelier AI",
+      "filename": "Menu_abbinamenti_consigliati.pdf"
+    }
   }
 }
