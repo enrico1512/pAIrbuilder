@@ -50,6 +50,11 @@ const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 async function startServer() {
   const app = express();
+  // Render (e tutti i PaaS managed: Heroku, Fly, Vercel, Replit) terminano
+  // TLS su un loadbalancer davanti al nostro processo. Senza trust proxy,
+  // express-session non vede la request come "secure" e rifiuta di settare
+  // il cookie Secure → la sessione non persiste tra chiamate in produzione.
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '50mb' }));
 
   const PgStore = connectPg(session);
