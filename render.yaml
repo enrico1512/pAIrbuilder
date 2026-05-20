@@ -1,0 +1,45 @@
+# Configurazione deploy Render per pAIrbuilder
+# Vedi https://render.com/docs/blueprint-spec
+#
+# Render legge questo file quando colleghi il repo come "Blueprint":
+# crea automaticamente il Web Service con i comandi corretti.
+
+services:
+  - type: web
+    name: pairbuilder
+    runtime: node
+    plan: free                # piano gratuito (sostituibile con "starter" a 7$/mese se si vuole evitare lo sleep)
+    region: frankfurt         # data center più vicino all'Italia
+    branch: main              # deploy automatico a ogni push su main
+    autoDeploy: true
+
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+
+    healthCheckPath: /api/config-check
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # PORT viene iniettata automaticamente da Render, non serve impostarla.
+      # Tutte le seguenti variabili vanno configurate nella dashboard Render
+      # (Environment → Add Environment Variable). Le elenco qui senza valore
+      # così la dashboard mostra subito quali mancano.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: SESSION_SECRET
+        sync: false
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_CLOUD_VISION_API_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
