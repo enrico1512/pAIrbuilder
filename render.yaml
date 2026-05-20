@@ -16,7 +16,7 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
 
-    healthCheckPath: /api/config-check
+    healthCheckPath: /api/health
 
     envVars:
       - key: NODE_ENV

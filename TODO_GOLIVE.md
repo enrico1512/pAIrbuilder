@@ -146,11 +146,11 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - [x] Password hashate con bcrypt (rounds configurabili)
 - [x] Chiavi API solo lato server (proxy)
 - [x] Sessioni HTTPOnly cookie
-- [ ] **Rate limiting** sugli endpoint auth e AI proxy (libreria `express-rate-limit`)
+- [x] **Rate limiting** sugli endpoint auth (10 req / 5 min) e AI proxy (60 req / min) + cap globale 300/min. `express-rate-limit` con `trust proxy=1` per IP corretto dietro Render LB.
 - [ ] **CORS configurato correttamente** per il dominio di produzione
 - [ ] **CSRF protection** sui form (se mai useremo cookie cross-site)
 - [ ] **Validazione input** con `zod` o `valibot` su tutti gli endpoint (oggi è ad hoc)
-- [ ] **Header di sicurezza** (`helmet` middleware: CSP, X-Frame-Options, ecc.)
+- [x] **Header di sicurezza** (`helmet` middleware: X-Content-Type-Options, X-Frame-Options DENY, Strict-Transport-Security, ecc.). CSP disabilitata: andra' configurata quando il dominio finale e' fissato (`pairbuilder.ambrosiavino.com`).
 - [ ] **Audit chiavi nel repo** — confermare che `.env` non sia mai stato committato (controllare `git log`)
 - [ ] **Cookie `Secure` e `SameSite=Lax`** in produzione
 
@@ -165,7 +165,7 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - [x] Repository su GitHub (`enrico1512/pAIrbuilder`)
 - [x] Replit collegato al repo per deploy
 - [ ] **README aggiornato** con istruzioni setup, comandi, deploy (oggi è di 3 righe)
-- [ ] **Health check endpoint** `GET /api/health` (utile per monitor uptime)
+- [x] **Health check endpoint** `GET /api/health` — liveness leggero, niente DB; usato da Render via `healthCheckPath` in render.yaml.
 - [ ] **Variabili d'ambiente di produzione configurate su Replit** (Secrets):
   - `DATABASE_URL`
   - `SESSION_SECRET` (deve essere lungo e casuale)
@@ -233,6 +233,7 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - Test deploy end-to-end
 
 **🟡 Importanti (da fare subito dopo):**
+- **Migrazione dominio a `pairbuilder.ambrosiavino.com`**: quando il record CNAME punta a Render e il dominio custom e' verificato, aggiornare nella dashboard Render → Environment la variabile `APP_URL` da `https://pairbuilder.onrender.com` a `https://pairbuilder.ambrosiavino.com`. Eventuale CSP futura andra' configurata con quel dominio.
 - Reset password (endpoint + UI)
 - Pagina impostazioni ristorante
 - CRUD `/api/opening-hours`
