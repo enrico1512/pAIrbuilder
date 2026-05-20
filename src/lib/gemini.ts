@@ -393,24 +393,30 @@ export async function listItemNames(
 ): Promise<{ dishes: string[]; drinks: string[] }> {
   try {
     const prompt = `
-      DIONISO DISCOVERY v14 - ULTIMATE EXHAUSTIVE SCAN
-      Your mission is to IDENTIFY EVERY SINGLE unique food item name AND EVERY SINGLE wine present in this document.
+      DIONISO DISCOVERY v15 - ULTIMATE EXHAUSTIVE SCAN
+      Your mission is to IDENTIFY EVERY SINGLE unique food item name AND EVERY SINGLE drink present in this document.
 
-      DRINKS INSTRUCTION (WINES ONLY): Extract ONLY WINES from the drinks list. This includes red wines (vini rossi), white wines (vini bianchi), rose wines (vini rosati), sparkling wines (bollicine, spumanti, champagne, prosecco, franciacorta, etc.), sweet/dessert wines (passiti, vin santo, moscato, etc.) and fortified wines (marsala, porto, sherry, etc.).
-      STRICTLY IGNORE and DO NOT extract: beers (birre), cocktails, spirits (whisky, gin, rum, vodka, tequila, grappa), liqueurs (liquori, amari, digestivi), aperitifs that are NOT wines (aperol, campari, etc.), soft drinks, juices, water, coffee, tea, or any non-wine beverage. If a section is titled "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", etc., SKIP IT ENTIRELY.
-      
-      DISHES INSTRUCTION: 
-      1. Extract EVERY dish name, including desserts, sides, and appetizers. 
-      2. CATEGORIZATION: You MUST find at least 2 dishes for every major section (Antipasti, Primi, Secondi, Dessert, etc.). 
+      DRINKS INSTRUCTION (ALL DRINKS): Extract EVERY beverage from the drinks list. ALL of these are in-scope and MUST be extracted:
+      - Wines: red (vini rossi), white (vini bianchi), rose (vini rosati), sparkling (bollicine, spumanti, champagne, prosecco, franciacorta), sweet/dessert wines (passiti, vin santo, moscato), fortified wines (marsala, porto, sherry).
+      - Beers (birre, birre artigianali, IPA, lager, stout, ecc.).
+      - Cocktails (alcoholic + analcolici).
+      - Spirits and distillati: whisky, gin, rum, vodka, tequila, grappa, brandy, cognac.
+      - Liqueurs, amari, digestivi, aperitivi (aperol, campari, vermouth, sambuca, limoncello).
+      - Soft drinks, succhi, acqua, caffè, tè, infusi.
+      Do NOT skip any section: extract sections titled "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", "Amari", "Caffetteria" too — they are all in-scope.
+
+      DISHES INSTRUCTION:
+      1. Extract EVERY dish name, including desserts, sides, and appetizers.
+      2. CATEGORIZATION: You MUST find at least 2 dishes for every major section (Antipasti, Primi, Secondi, Dessert, etc.).
       3. PIZZA RULE: ${allowPizzas ? "EXTRACT PIZZAS as a dedicated section." : "DO NOT extract Pizzas. Skip any section or item identified as Pizza."}
-      
+
       CRITICAL RULES:
       1. Return ONLY the item names as a flat list in JSON.
-      2. EXHAUSTIVE on what is in-scope: extract EVERY dish (except pizzas if disallowed above) and EVERY wine. If a wine list has 100 wines, you MUST return all 100 wine entries. The ONLY items you may skip are non-wine drinks (per the DRINKS INSTRUCTION above)${allowPizzas ? "" : " and pizzas"}.
+      2. EXHAUSTIVE on what is in-scope: extract EVERY dish (except pizzas if disallowed above) and EVERY drink of any category. If a drink list has 100 items, you MUST return all 100 entries. The ONLY items you may skip are${allowPizzas ? " nothing" : " pizzas"}.
       3. SCAN EVERYTHING: Many menus have multiple columns, small text, or items listed in sidebars. Scan until the very last word of the last page.
       4. DO NOT SUMMARIZE. DO NOT USE "...". DO NOT TRUNCATE. If the list is long, continue until finished. NO EXCUSES.
       5. Extract names exactly as written.
-      6. If the document contains NO wines at all (only food), return "drinks": []. If it contains NO dishes (only a wine list), return "dishes": []. NEVER return both arrays empty if the document has any wines or any dishes.
+      6. If the document contains NO drinks at all (only food), return "drinks": []. If it contains NO dishes (only a drinks list), return "dishes": []. NEVER return both arrays empty if the document has any drinks or any dishes.
       
       OUTPUT FORMAT (JSON ONLY):
       {
@@ -476,8 +482,14 @@ async function extractItemsBatch(
   if (itemNames.length === 0) return [];
 
   const drinkCategoriesPrompt = `
-    WINES ONLY MODE: This list MUST contain only WINES. Allowed categories: "Vino Rosso", "Vino Bianco", "Vino Rosato", "Bollicine", "Vino Dolce".
-    If any item in the target list is NOT a wine (e.g. a beer, cocktail, spirit, liqueur, soft drink, water), SKIP IT and DO NOT return it in the output.
+    ALL DRINKS MODE: classify each item using the most specific category among:
+    - Wines: "Vino Rosso", "Vino Bianco", "Vino Rosato", "Bollicine", "Vino Dolce"
+    - Beers: "Birra", "Birra Artigianale"
+    - Cocktails: "Cocktail", "Cocktail Analcolico"
+    - Spirits/distillati: "Whisky", "Gin", "Rum", "Vodka", "Tequila", "Grappa", "Spirits"
+    - Liquori/amari/digestivi/aperitivi: "Amaro", "Liquore", "Digestivo", "Aperitivo"
+    - Other: "Acqua", "Soft Drink", "Succo", "The", "Caffe'", "Altro"
+    Do NOT skip any item: every beverage in the target list MUST appear in the output.
   `;
 
   const prompt = `
