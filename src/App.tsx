@@ -189,6 +189,25 @@ export default function App() {
   const handleRestaurantSubmit = (data: { name: string; type: string; email: string; phone: string; logo: string | null }) => {
     setRestaurantData(data);
     setStep("upload");
+    // Per sessioni ospite (non loggate), creiamo un guest restaurant sul
+    // server cosi' le chiamate /api/dishes|drinks|pairings/bulk successive
+    // hanno un restaurant_id a cui attaccarsi. Fire-and-forget — se fallisce
+    // l'UX continua normalmente (perdiamo solo l'analytics lato server).
+    // Gli utenti loggati saltano: il loro restaurant_id e' gia' in sessione.
+    if (!auth.user) {
+      const lang = (i18n.resolvedLanguage || i18n.language || 'it').split('-')[0];
+      void fetch('/api/guest/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          type: data.type,
+          email: data.email,
+          phone: data.phone,
+          preferredLanguage: lang,
+        }),
+      }).catch(err => console.warn('[guest onboarding] save failed (non-blocking):', err));
+    }
   };
 
   const handleAddMoreDrinks = async (newDrinkFiles: File[]) => {
@@ -385,13 +404,36 @@ export default function App() {
 
   const handleReviewConfirm = (allDishes: Dish[], allDrinks: Drink[]) => {
     // Save feedback for learning (verified items)
-    // We take a few high-quality ones to avoid overwhelming the prompt
     allDishes.slice(0, 3).forEach(dish => {
       learningService.saveFeedback('dish', dish.name, dish);
     });
     allDrinks.slice(0, 3).forEach(drink => {
       learningService.saveFeedback('drink', drink.product, drink);
     });
+
+    // Persist dishes + drinks server-side sotto lo scope corrente (utente
+    // loggato OPPURE guest restaurant creato al onboarding). L'endpoint
+    // pairings deve trovare queste righe nel DB per risolvere i nomi → id,
+    // quindi attendiamo entrambi i POST PRIMA di generare i pairings, ma
+    // non blocchiamo l'UI in caso di errore.
+    const persistMenuPromise = (async () => {
+      try {
+        await Promise.all([
+          fetch('/api/dishes/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dishes: allDishes }),
+          }),
+          fetch('/api/drinks/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ drinks: allDrinks }),
+          }),
+        ]);
+      } catch (err) {
+        console.warn('[bulk save] menu/drinks save failed (non-blocking):', err);
+      }
+    })();
 
     setStep("loading");
     
@@ -424,10 +466,39 @@ export default function App() {
         });
 
         const result = await Promise.race([pairingPromise, timeoutPromise]);
-        
+
         setPairings(result);
         setStep("results");
         clearTimeout(timeoutId);
+
+        // Dopo che dishes + drinks sono stati persistiti AND l'AI ha
+        // ritornato i pairings, salviamo anche quelli. Il server risolve
+        // i nomi → id usando le righe appena inserite, quindi MUST await il
+        // persistMenuPromise prima. Non-blocking su errore.
+        try {
+          await persistMenuPromise;
+          const pairingPayload = result.flatMap((p) =>
+            (p.drinks || []).map((d) => ({
+              dishName: p.dish,
+              drinkName: d.name,
+              matchType: d.matchType,
+              description: d.description,
+            }))
+          );
+          if (pairingPayload.length > 0) {
+            void fetch('/api/pairings/bulk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                pairings: pairingPayload,
+                language: (i18n.resolvedLanguage || 'it').split('-')[0],
+                model: 'mixed',
+              }),
+            }).catch((err) => console.warn('[bulk save] pairings save failed (non-blocking):', err));
+          }
+        } catch (err) {
+          console.warn('[bulk save] pairings persist skipped:', err);
+        }
       } catch (error) {
         clearTimeout(timeoutId);
         console.error("Pairing error:", error);

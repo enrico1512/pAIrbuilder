@@ -81,6 +81,10 @@ CREATE TABLE restaurants (
   tripadvisor     TEXT,
   -- preferenze
   default_language CHAR(2) DEFAULT 'it',
+  -- guest tracking (ristoranti creati al volo da sessione anonima)
+  is_guest        BOOLEAN NOT NULL DEFAULT FALSE,
+  guest_email     TEXT,
+  guest_phone     TEXT,
   -- stato
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -89,6 +93,7 @@ CREATE TABLE restaurants (
 
 CREATE INDEX idx_restaurants_active ON restaurants(is_active);
 CREATE INDEX idx_restaurants_city ON restaurants(city);
+CREATE INDEX idx_restaurants_is_guest ON restaurants(is_guest);
 
 CREATE TRIGGER trg_restaurants_updated
   BEFORE UPDATE ON restaurants
@@ -105,6 +110,7 @@ CREATE TABLE users (
   full_name       TEXT,
   role            user_role NOT NULL DEFAULT 'owner',
   preferred_language CHAR(2) DEFAULT 'it',
+  is_platform_admin BOOLEAN NOT NULL DEFAULT FALSE,   -- visibilità cross-ristorante per owner della piattaforma
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   email_verified_at TIMESTAMPTZ,
   last_login_at   TIMESTAMPTZ,
@@ -293,6 +299,7 @@ CREATE TABLE pairings (
   rationale       TEXT,                                         -- spiegazione AI
   source          pairing_source NOT NULL DEFAULT 'ai',
   model           TEXT,                                         -- "gemini-1.5-pro", "gpt-4o"
+  language        CHAR(2) DEFAULT 'it',                         -- lingua del rationale generato
   approved_by     UUID REFERENCES users(id),
   approved_at     TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),

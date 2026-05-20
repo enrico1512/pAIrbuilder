@@ -71,12 +71,17 @@ export const restaurants = pgTable('restaurants', {
   facebook: text('facebook'),
   tripadvisor: text('tripadvisor'),
   defaultLanguage: char('default_language', { length: 2 }).default('it'),
+  // Guest tracking: ristoranti creati al volo da sessione anonima
+  isGuest: boolean('is_guest').notNull().default(false),
+  guestEmail: text('guest_email'),
+  guestPhone: text('guest_phone'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   activeIdx: index('idx_restaurants_active').on(t.isActive),
   cityIdx: index('idx_restaurants_city').on(t.city),
+  guestIdx: index('idx_restaurants_is_guest').on(t.isGuest),
 }));
 
 // ===========================================================================
@@ -91,6 +96,7 @@ export const users = pgTable('users', {
   fullName: text('full_name'),
   role: userRole('role').notNull().default('owner'),
   preferredLanguage: char('preferred_language', { length: 2 }).default('it'),
+  isPlatformAdmin: boolean('is_platform_admin').notNull().default(false),
   isActive: boolean('is_active').notNull().default(true),
   emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
@@ -267,6 +273,7 @@ export const pairings = pgTable('pairings', {
   rationale: text('rationale'),
   source: pairingSource('source').notNull().default('ai'),
   model: text('model'),
+  language: char('language', { length: 2 }).default('it'),
   approvedBy: uuid('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
