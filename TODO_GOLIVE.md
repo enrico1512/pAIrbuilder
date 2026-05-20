@@ -164,7 +164,7 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - [x] Variabile `PORT` dinamica (no hardcoded)
 - [x] Repository su GitHub (`enrico1512/pAIrbuilder`)
 - [x] Replit collegato al repo per deploy
-- [ ] **README aggiornato** con istruzioni setup, comandi, deploy (oggi è di 3 righe)
+- [x] **README aggiornato** con istruzioni setup, comandi, deploy, schema DB, API, i18n, sicurezza, licenza.
 - [x] **Health check endpoint** `GET /api/health` — liveness leggero, niente DB; usato da Render via `healthCheckPath` in render.yaml.
 - [ ] **Variabili d'ambiente di produzione configurate su Replit** (Secrets):
   - `DATABASE_URL`
@@ -224,13 +224,13 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 ## Priorità suggerite per il go-live
 
 **🔴 Bloccanti (senza queste non si va online):**
-- **Verifica salvataggio prezzi** (piatti + drink) end-to-end dall'AI al DB
-- Esporre il popup login nel frontend
-- CRUD `/api/pairings` + salvataggio abbinamenti
+- ~~Verifica salvataggio prezzi (piatti + drink) end-to-end~~ ✅
+- ~~Esporre il popup login nel frontend~~ ✅
+- ~~CRUD `/api/pairings` + salvataggio abbinamenti~~ ✅ (via bulk endpoints)
+- ~~README aggiornato~~ ✅
 - Informativa privacy + termini (raccogliamo dati, è obbligatoria sul serio)
-- README aggiornato
-- Variabili d'ambiente di produzione su Replit
-- Test deploy end-to-end
+- Variabili d'ambiente di produzione su Render (in particolare `APP_URL` al momento della migrazione dominio)
+- Test deploy end-to-end con caricamento menu reale
 
 **🟡 Importanti (da fare subito dopo):**
 - **Migrazione dominio a `pairbuilder.ambrosiavino.com`**: quando il record CNAME punta a Render e il dominio custom e' verificato, aggiornare nella dashboard Render → Environment la variabile `APP_URL` da `https://pairbuilder.onrender.com` a `https://pairbuilder.ambrosiavino.com`. Eventuale CSP futura andra' configurata con quel dominio.
