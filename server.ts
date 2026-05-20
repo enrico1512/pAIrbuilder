@@ -520,11 +520,11 @@ async function startServer() {
     }
   });
 
-  // GET /api/admin/export.xlsx — Excel multi-sheet con TUTTI i dati della
-  // piattaforma (4 fogli: Ristoranti, Piatti, Drinks, Abbinamenti). Comodo
-  // per analisi offline, intelligence, condivisione con il team.
-  // Login richiesto: utente platform admin.
-  app.get('/api/admin/export.xlsx', requireAdmin, async (req, res) => {
+  // GET /api/admin/export.xlsx (alias breve: /export) — Excel multi-sheet con
+  // TUTTI i dati della piattaforma (4 fogli: Ristoranti, Piatti, Drinks,
+  // Abbinamenti). Comodo per analisi offline, intelligence, condivisione con
+  // il team. Login richiesto: utente platform admin.
+  app.get(['/api/admin/export.xlsx', '/export'], requireAdmin, async (req, res) => {
     try {
       const restaurantsRows = await pool.query(`
         SELECT r.slug, r.name, r.cuisine_type, r.is_guest,
