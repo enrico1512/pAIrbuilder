@@ -57,20 +57,12 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 
 ---
 
-## 5. 📥 Salvataggio documenti caricati (CRITICO per la strategia dati)
+## 5. ~~Salvataggio file originali~~ (RIMOSSO 20 mag 2026)
 
-> Oggi i file vengono caricati, parsati e l'AI estrae i piatti/drink — ma **i file originali non vengono mai salvati a database**. Senza questo perdiamo il dato grezzo più prezioso (utile per riaddestramento AI, audit, e ricostruzione futura se cambiamo parser).
+> Decisione di Enrico: **non serve salvare i file PDF/DOCX/Excel originali**. Lo scopo della raccolta dati e' avere gli **item strutturati** (piatti, drink, prezzi, abbinamenti) gia' estratti dall'AI e collegati al ristorante. I file di partenza non hanno valore aggiuntivo, basta l'output strutturato + export Excel per la consultazione.
 
-- [ ] **Nuova tabella `uploaded_documents`** nello schema DB con: `id`, `restaurant_id` (CASCADE), `document_type` (`menu_food`|`drink_card`), `original_filename`, `mime_type`, `file_size_bytes`, `storage_url` (o `file_bytea` se vogliamo tenere tutto su DB), `raw_extracted_text`, `ai_extraction_metadata` (jsonb), `extracted_items_count`, `uploaded_at`, `uploaded_by_user_id`
-- [ ] **Scelta storage per i file**: opzioni — (a) Supabase Storage gratuito fino a 1GB, (b) Cloudflare R2 (10GB gratis), (c) bytea direttamente su Postgres Neon (semplice ma costoso oltre certi volumi), (d) Replit Object Storage
-- [ ] **Endpoint `POST /api/uploads/menu`** — riceve il file con `multer`, lo salva nello storage scelto, scrive record in `uploaded_documents`, restituisce `document_id`
-- [ ] **Endpoint `POST /api/uploads/drink-card`** — idem per carta drink
-- [ ] **Endpoint `GET /api/uploads`** — elenca i documenti del ristorante loggato (storico upload)
-- [ ] **Endpoint `GET /api/uploads/:id/download`** — scarica il file originale
-- [ ] **Collegare il flusso MenuUpload al salvataggio** — oggi parsa in memoria, deve prima salvare e poi parsare partendo dal file salvato
-- [ ] **Salvare il testo grezzo estratto** (output OCR/parser) nel campo `raw_extracted_text`
-- [ ] **Salvare metadata estrazione AI** (modello usato, token consumati, durata, prompt) nel jsonb `ai_extraction_metadata`
-- [ ] **Pagina "Documenti del ristorante"** nel frontend — lista con anteprima, data caricamento, numero piatti/drink estratti, link download
+- Strategia dati attuale: `food_items`, `drinks`, `pairings` (con `restaurant_id`) + export Excel via `/api/admin/export.xlsx`.
+- Se in futuro servisse il dato grezzo per re-training AI, va riaperta come task a sé.
 
 ---
 
@@ -232,7 +224,6 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 ## Priorità suggerite per il go-live
 
 **🔴 Bloccanti (senza queste non si va online):**
-- **Tabella `uploaded_documents` + storage + endpoint upload** (senza questo perdiamo il dato grezzo, è il cuore della strategia)
 - **Verifica salvataggio prezzi** (piatti + drink) end-to-end dall'AI al DB
 - Esporre il popup login nel frontend
 - CRUD `/api/pairings` + salvataggio abbinamenti
@@ -242,7 +233,6 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - Test deploy end-to-end
 
 **🟡 Importanti (da fare subito dopo):**
-- Pagina "Documenti del ristorante" (storico upload visibile all'utente)
 - Reset password (endpoint + UI)
 - Pagina impostazioni ristorante
 - CRUD `/api/opening-hours`

@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { and, eq } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
+import * as XLSX from 'xlsx';
 import { db, pool } from './db/client';
 import {
   restaurants,
@@ -453,6 +454,85 @@ async function startServer() {
       res.json({ restaurant, dishes, drinks: drinkRows, pairings: pairingRows.rows });
     } catch (err: any) {
       console.error('Admin restaurant full error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'readFailed') });
+    }
+  });
+
+  // GET /api/admin/export.xlsx — Excel multi-sheet con TUTTI i dati della
+  // piattaforma (4 fogli: Ristoranti, Piatti, Drinks, Abbinamenti). Comodo
+  // per analisi offline, intelligence, condivisione con il team.
+  // Login richiesto: utente platform admin.
+  app.get('/api/admin/export.xlsx', requireAdmin, async (req, res) => {
+    try {
+      const restaurantsRows = await pool.query(`
+        SELECT r.slug, r.name, r.cuisine_type, r.is_guest,
+               r.guest_email, r.guest_phone, r.default_language,
+               COALESCE(u.email, r.guest_email) AS contact_email,
+               r.created_at,
+               (SELECT COUNT(*) FROM food_items WHERE restaurant_id = r.id) AS dishes_count,
+               (SELECT COUNT(*) FROM drinks      WHERE restaurant_id = r.id) AS drinks_count,
+               (SELECT COUNT(*) FROM pairings    WHERE restaurant_id = r.id) AS pairings_count
+        FROM restaurants r
+        LEFT JOIN users u ON u.restaurant_id = r.id AND NOT u.is_platform_admin
+        ORDER BY r.created_at DESC
+      `);
+      const dishesRows = await pool.query(`
+        SELECT r.slug AS ristorante_slug, r.name AS ristorante,
+               r.is_guest AS ospite,
+               fi.name AS piatto, fi.description AS categoria,
+               fi.ingredients,
+               (fi.price_cents / 100.0) AS prezzo_eur,
+               fi.is_vegetarian AS vegetariano,
+               fi.is_vegan AS vegano,
+               fi.is_gluten_free AS senza_glutine,
+               fi.created_at
+        FROM food_items fi
+        JOIN restaurants r ON r.id = fi.restaurant_id
+        ORDER BY r.created_at DESC, fi.created_at ASC
+      `);
+      const drinksRows = await pool.query(`
+        SELECT r.slug AS ristorante_slug, r.name AS ristorante,
+               r.is_guest AS ospite,
+               d.category AS categoria, d.wine_color AS colore_vino,
+               d.producer AS produttore, d.name AS prodotto,
+               d.vintage AS annata, d.region AS regione, d.country AS paese,
+               (d.price_bottle_cents / 100.0) AS prezzo_bottiglia_eur,
+               (d.price_glass_cents  / 100.0) AS prezzo_calice_eur,
+               d.created_at
+        FROM drinks d
+        JOIN restaurants r ON r.id = d.restaurant_id
+        ORDER BY r.created_at DESC, d.category, d.name
+      `);
+      const pairingsRows = await pool.query(`
+        SELECT r.slug AS ristorante_slug, r.name AS ristorante,
+               r.is_guest AS ospite,
+               fi.name AS piatto, d.name AS bevanda,
+               p.rationale AS descrizione_ai,
+               p.language AS lingua,
+               p.model AS modello_ai,
+               p.source AS sorgente,
+               p.created_at
+        FROM pairings p
+        JOIN food_items fi  ON fi.id = p.food_item_id
+        JOIN drinks d       ON d.id  = p.drink_id
+        JOIN restaurants r  ON r.id  = p.restaurant_id
+        ORDER BY r.created_at DESC, p.created_at DESC
+      `);
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(restaurantsRows.rows), 'Ristoranti');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dishesRows.rows),      'Piatti');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(drinksRows.rows),      'Drinks');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pairingsRows.rows),    'Abbinamenti');
+
+      const buf: Buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      const today = new Date().toISOString().slice(0, 10);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="pairbuilder-export-${today}.xlsx"`);
+      res.setHeader('Content-Length', String(buf.length));
+      res.end(buf);
+    } catch (err: any) {
+      console.error('Admin export error:', err);
       res.status(500).json({ error: err?.message || tError(getLang(req), 'readFailed') });
     }
   });
