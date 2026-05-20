@@ -16,6 +16,7 @@ import {
   foodItems,
   drinks,
   contacts,
+  pairings,
 } from './db/schema';
 import {
   getLang,
@@ -37,6 +38,9 @@ declare module 'express-session' {
   interface SessionData {
     userId?: string;
     restaurantId?: string;
+    /** Restaurant ID creato al volo per sessioni anonime. Mutuamente
+     *  esclusivo con restaurantId/userId in pratica. */
+    guestRestaurantId?: string;
   }
 }
 
@@ -71,6 +75,31 @@ async function startServer() {
   function requireAuth(req: Request, res: Response, next: NextFunction) {
     if (!req.session.userId || !req.session.restaurantId) {
       return res.status(401).json({ error: tError(getLang(req), 'notAuth') });
+    }
+    next();
+  }
+
+  /** Restaurant scope per la sessione corrente: utente loggato OPPURE ospite
+   *  che ha completato /api/guest/onboarding. Null se nessuno. */
+  function sessionRestaurantId(req: Request): string | null {
+    return req.session.restaurantId || req.session.guestRestaurantId || null;
+  }
+
+  function requireSession(req: Request, res: Response, next: NextFunction) {
+    if (!sessionRestaurantId(req)) {
+      return res.status(401).json({ error: tError(getLang(req), 'notAuth') });
+    }
+    next();
+  }
+
+  async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: tError(getLang(req), 'notAuth') });
+    }
+    const [u] = await db.select({ admin: users.isPlatformAdmin })
+      .from(users).where(eq(users.id, req.session.userId)).limit(1);
+    if (!u || !u.admin) {
+      return res.status(403).json({ error: tError(getLang(req), 'notAuth') });
     }
     next();
   }
@@ -171,6 +200,276 @@ async function startServer() {
     } catch (err: any) {
       console.error('Update preferred language error:', err);
       res.status(500).json({ error: err?.message || tError(getLang(req), 'updateFailed') });
+    }
+  });
+
+  // ====================================================================
+  // GUEST onboarding — crea un restaurant "ospite" per la sessione anonima
+  // ====================================================================
+  // Quando un visitatore non loggato compila il form di onboarding, qui
+  // creiamo un record `restaurants` con is_guest=true legato alla sua
+  // sessione Express. Da quel momento gli endpoint /api/dishes|drinks|
+  // pairings/bulk lo trattano come un utente loggato — solo che lo scope
+  // restaurant_id punta a una riga marcata guest. L'owner di piattaforma
+  // (Enrico) consulta poi questi record via gli endpoint admin.
+  app.post('/api/guest/onboarding', async (req, res) => {
+    try {
+      const { name, type, email, phone, preferredLanguage } = req.body || {};
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ error: tError(getLang(req), 'missingFields', { fields: 'name' }) });
+      }
+      if (req.session.restaurantId) {
+        return res.json({ restaurantId: req.session.restaurantId, alreadyLoggedIn: true });
+      }
+      const lang = preferredLanguage === 'en' || preferredLanguage === 'it'
+        ? preferredLanguage
+        : getLang(req);
+      if (req.session.guestRestaurantId) {
+        await db.update(restaurants)
+          .set({
+            name: name.trim(),
+            cuisineType: (type || '').trim() || null,
+            guestEmail: (email || '').trim() || null,
+            guestPhone: (phone || '').trim() || null,
+            defaultLanguage: lang,
+          })
+          .where(eq(restaurants.id, req.session.guestRestaurantId));
+        return res.json({ restaurantId: req.session.guestRestaurantId, reused: true });
+      }
+      const slug = `guest-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+      const [rest] = await db.insert(restaurants).values({
+        slug,
+        name: name.trim(),
+        cuisineType: (type || '').trim() || null,
+        guestEmail: (email || '').trim() || null,
+        guestPhone: (phone || '').trim() || null,
+        isGuest: true,
+        defaultLanguage: lang,
+      }).returning();
+      req.session.guestRestaurantId = rest.id;
+      res.json({ restaurantId: rest.id, slug: rest.slug });
+    } catch (err: any) {
+      console.error('Guest onboarding error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
+    }
+  });
+
+  // ====================================================================
+  // SAVE endpoints — bulk persist per dishes / drinks / pairings.
+  // Funzionano sia per utenti loggati sia per ospiti (requireSession).
+  // ====================================================================
+
+  // Drink category normalizer: mappa stringhe varianti IT/EN al pgEnum DB
+  type DrinkCat = 'wine' | 'beer' | 'spirit' | 'cocktail' | 'soft' | 'water' | 'hot';
+  type WineColor = 'red' | 'white' | 'rose' | 'sparkling' | 'dessert' | 'fortified';
+  const drinkCategoryMap: Record<string, { category: DrinkCat; wineColor?: WineColor }> = {
+    'vino rosso': { category: 'wine', wineColor: 'red' },
+    'red wine': { category: 'wine', wineColor: 'red' },
+    'vino bianco': { category: 'wine', wineColor: 'white' },
+    'white wine': { category: 'wine', wineColor: 'white' },
+    'vino rosato': { category: 'wine', wineColor: 'rose' },
+    'rose wine': { category: 'wine', wineColor: 'rose' },
+    'rosé wine': { category: 'wine', wineColor: 'rose' },
+    'bollicine': { category: 'wine', wineColor: 'sparkling' },
+    'sparkling': { category: 'wine', wineColor: 'sparkling' },
+    'spumante': { category: 'wine', wineColor: 'sparkling' },
+    'champagne': { category: 'wine', wineColor: 'sparkling' },
+    'prosecco': { category: 'wine', wineColor: 'sparkling' },
+    'vino dolce': { category: 'wine', wineColor: 'dessert' },
+    'sweet wine': { category: 'wine', wineColor: 'dessert' },
+    'passito': { category: 'wine', wineColor: 'dessert' },
+    'birra': { category: 'beer' },
+    'beer': { category: 'beer' },
+    'cocktail': { category: 'cocktail' },
+    'spirit': { category: 'spirit' },
+    'spirits': { category: 'spirit' },
+    'distillato': { category: 'spirit' },
+    'soft': { category: 'soft' },
+    'analcolico': { category: 'soft' },
+    'acqua': { category: 'water' },
+    'water': { category: 'water' },
+    'caffe': { category: 'hot' },
+    'caffè': { category: 'hot' },
+    'coffee': { category: 'hot' },
+    'tea': { category: 'hot' },
+  };
+
+  function normalizeDrink(rawCategory: string): { category: DrinkCat; wineColor: WineColor | null } {
+    const key = (rawCategory || '').toLowerCase().trim();
+    for (const k of Object.keys(drinkCategoryMap)) {
+      if (key.includes(k)) {
+        const m = drinkCategoryMap[k];
+        return { category: m.category, wineColor: m.wineColor ?? null };
+      }
+    }
+    return { category: 'soft', wineColor: null };
+  }
+
+  function parsePriceCents(raw: string | undefined | null): number | null {
+    if (!raw) return null;
+    const cleaned = String(raw).replace(/[^\d.,]/g, '').replace(',', '.');
+    const num = parseFloat(cleaned);
+    if (!isFinite(num) || num <= 0) return null;
+    return Math.round(num * 100);
+  }
+
+  function parseVintage(raw: string | undefined | null): number | null {
+    if (!raw) return null;
+    const m = String(raw).match(/\b(19|20)\d{2}\b/);
+    return m ? parseInt(m[0], 10) : null;
+  }
+
+  app.post('/api/dishes/bulk', requireSession, async (req, res) => {
+    try {
+      const rid = sessionRestaurantId(req)!;
+      const list: Array<{ name?: string; category?: string; fullIngredients?: string }> = Array.isArray(req.body?.dishes) ? req.body.dishes : [];
+      if (list.length === 0) return res.json({ inserted: 0 });
+      const rows = list
+        .filter(d => d.name && String(d.name).trim().length > 0)
+        .map(d => ({
+          restaurantId: rid,
+          name: String(d.name).trim(),
+          ingredients: (d.fullIngredients || '').trim() || null,
+          description: (d.category || '').trim() || null, // category AI come hint testuale
+        }));
+      if (rows.length === 0) return res.json({ inserted: 0 });
+      const inserted = await db.insert(foodItems).values(rows).returning({ id: foodItems.id });
+      res.json({ inserted: inserted.length, ids: inserted.map(r => r.id) });
+    } catch (err: any) {
+      console.error('Dishes bulk error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
+    }
+  });
+
+  app.post('/api/drinks/bulk', requireSession, async (req, res) => {
+    try {
+      const rid = sessionRestaurantId(req)!;
+      const list: Array<any> = Array.isArray(req.body?.drinks) ? req.body.drinks : [];
+      if (list.length === 0) return res.json({ inserted: 0 });
+      const rows = list
+        .filter(d => d.product && String(d.product).trim().length > 0)
+        .map(d => {
+          const norm = normalizeDrink(d.category || '');
+          return {
+            restaurantId: rid,
+            category: norm.category,
+            wineColor: norm.wineColor,
+            name: String(d.product).trim(),
+            producer: (d.producer || '').trim() || null,
+            vintage: parseVintage(d.vintage),
+            priceBottleCents: parsePriceCents(d.price),
+          };
+        });
+      if (rows.length === 0) return res.json({ inserted: 0 });
+      const inserted = await db.insert(drinks).values(rows).returning({ id: drinks.id, name: drinks.name });
+      res.json({ inserted: inserted.length, ids: inserted.map(r => r.id) });
+    } catch (err: any) {
+      console.error('Drinks bulk error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
+    }
+  });
+
+  app.post('/api/pairings/bulk', requireSession, async (req, res) => {
+    try {
+      const rid = sessionRestaurantId(req)!;
+      const list: Array<any> = Array.isArray(req.body?.pairings) ? req.body.pairings : [];
+      const language: 'it' | 'en' = req.body?.language === 'en' ? 'en' : 'it';
+      const model: string | null = typeof req.body?.model === 'string' ? req.body.model : null;
+      if (list.length === 0) return res.json({ inserted: 0 });
+      const allDishes = await db.select({ id: foodItems.id, name: foodItems.name }).from(foodItems).where(eq(foodItems.restaurantId, rid));
+      const allDrinks = await db.select({ id: drinks.id, name: drinks.name }).from(drinks).where(eq(drinks.restaurantId, rid));
+      const dishMap = new Map(allDishes.map(d => [d.name.toLowerCase().trim(), d.id]));
+      const drinkMap = new Map(allDrinks.map(d => [d.name.toLowerCase().trim(), d.id]));
+      const toInsert: any[] = [];
+      let unresolved = 0;
+      for (const p of list) {
+        const foodId = dishMap.get(String(p.dishName || '').toLowerCase().trim());
+        const drinkId = drinkMap.get(String(p.drinkName || '').toLowerCase().trim());
+        if (!foodId || !drinkId) { unresolved++; continue; }
+        toInsert.push({
+          restaurantId: rid,
+          foodItemId: foodId,
+          drinkId: drinkId,
+          rationale: typeof p.description === 'string' ? p.description : null,
+          source: 'ai' as const,
+          model,
+          language,
+        });
+      }
+      if (toInsert.length === 0) return res.json({ inserted: 0, unresolved });
+      const inserted = await db.insert(pairings).values(toInsert)
+        .onConflictDoNothing({ target: [pairings.foodItemId, pairings.drinkId] })
+        .returning({ id: pairings.id });
+      res.json({ inserted: inserted.length, unresolved });
+    } catch (err: any) {
+      console.error('Pairings bulk error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
+    }
+  });
+
+  // ====================================================================
+  // ADMIN — endpoint cross-ristorante per il platform owner
+  // ====================================================================
+  app.get('/api/admin/restaurants', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT r.id, r.slug, r.name, r.cuisine_type, r.is_guest,
+               r.guest_email, r.guest_phone, r.default_language, r.created_at,
+               (SELECT COUNT(*) FROM food_items WHERE restaurant_id = r.id) AS dishes_count,
+               (SELECT COUNT(*) FROM drinks WHERE restaurant_id = r.id) AS drinks_count,
+               (SELECT COUNT(*) FROM pairings WHERE restaurant_id = r.id) AS pairings_count,
+               (SELECT email FROM users WHERE restaurant_id = r.id ORDER BY created_at LIMIT 1) AS owner_email
+        FROM restaurants r
+        ORDER BY r.created_at DESC
+      `);
+      res.json({ restaurants: result.rows });
+    } catch (err: any) {
+      console.error('Admin restaurants error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'readFailed') });
+    }
+  });
+
+  app.get('/api/admin/restaurants/:slug/full', requireAdmin, async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      const [restaurant] = await db.select().from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
+      if (!restaurant) return res.status(404).json({ error: tError(getLang(req), 'notFound') });
+      const dishes = await db.select().from(foodItems).where(eq(foodItems.restaurantId, restaurant.id));
+      const drinkRows = await db.select().from(drinks).where(eq(drinks.restaurantId, restaurant.id));
+      const pairingRows = await pool.query(`
+        SELECT p.id, p.rationale, p.source, p.model, p.language, p.created_at,
+               fi.name AS dish_name, d.name AS drink_name
+        FROM pairings p
+        JOIN food_items fi ON fi.id = p.food_item_id
+        JOIN drinks d ON d.id = p.drink_id
+        WHERE p.restaurant_id = $1
+        ORDER BY p.created_at DESC
+      `, [restaurant.id]);
+      res.json({ restaurant, dishes, drinks: drinkRows, pairings: pairingRows.rows });
+    } catch (err: any) {
+      console.error('Admin restaurant full error:', err);
+      res.status(500).json({ error: err?.message || tError(getLang(req), 'readFailed') });
+    }
+  });
+
+  app.get('/api/admin/stats', requireAdmin, async (_req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT
+          (SELECT COUNT(*) FROM restaurants WHERE NOT is_guest) AS registered_restaurants,
+          (SELECT COUNT(*) FROM restaurants WHERE is_guest) AS guest_restaurants,
+          (SELECT COUNT(*) FROM users WHERE NOT is_platform_admin) AS users_total,
+          (SELECT COUNT(*) FROM food_items) AS dishes_total,
+          (SELECT COUNT(*) FROM drinks) AS drinks_total,
+          (SELECT COUNT(*) FROM pairings) AS pairings_total,
+          (SELECT COUNT(*) FROM pairings WHERE language='it') AS pairings_it,
+          (SELECT COUNT(*) FROM pairings WHERE language='en') AS pairings_en,
+          (SELECT COUNT(*) FROM restaurants WHERE created_at > NOW() - INTERVAL '7 days') AS restaurants_last_7d
+      `);
+      res.json(result.rows[0]);
+    } catch (err: any) {
+      console.error('Admin stats error:', err);
+      res.status(500).json({ error: err?.message });
     }
   });
 

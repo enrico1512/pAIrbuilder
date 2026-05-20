@@ -21,7 +21,7 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - [x] Form di login nel frontend (`AuthModal.tsx`)
 - [x] Sessioni persistite in PostgreSQL (`connect-pg-simple`)
 - [x] Hash password con bcrypt
-- [ ] **Esporre il popup login nel frontend** (oggi è solo backend + componente, non viene mostrato all'utente che entra in modalità ospite)
+- [x] **Esporre il popup login nel frontend** — `AuthModal.tsx` montato in `App.tsx`, si apre al primo accesso. "Continua come ospite" persistito in `localStorage.pairbuilder.authDismissed`. Dropdown utente con voci condizionali (Accedi/Crea profilo se ospite, Esci se loggato).
 - [ ] **Endpoint reset password** (`POST /api/auth/forgot-password`, `POST /api/auth/reset-password`) — la tabella `auth_tokens` esiste ma non c'è la logica
 - [ ] **Endpoint verifica email** (`POST /api/auth/verify-email`) — usa la stessa tabella `auth_tokens`
 - [ ] **UI "Password dimenticata"** nel `AuthModal`
@@ -113,11 +113,23 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - [x] Endpoint proxy AI per generare abbinamenti (`/api/openai/pairings`, `/api/gemini/generate`)
 - [x] Componente `PairingResults.tsx` per visualizzare gli abbinamenti
 - [x] Export PDF con `jspdf` + `jspdf-autotable`
-- [ ] **CRUD `/api/pairings`** — manca completamente (oggi gli abbinamenti vengono generati ma NON vengono salvati a DB)
-- [ ] **Salvataggio abbinamenti generati** (collegare la generazione AI al CRUD)
-- [ ] **Caricamento abbinamenti salvati** all'apertura del progetto
+- [x] **Endpoint `POST /api/pairings/bulk`** — risolve dishName/drinkName → id via lookup nel restaurant scope, INSERT con UNIQUE skip
+- [x] **Salvataggio abbinamenti generati** — il frontend in `App.tsx::handleReviewConfirm` salva via fetch dopo la generazione AI (sia per loggati che ospiti)
+- [ ] **Caricamento abbinamenti salvati** all'apertura del progetto (step B per utenti loggati: ritrovare le carte)
 - [ ] **Modifica/cancellazione abbinamento manuale**
 - [ ] **Audit log AI** — la tabella `ai_requests` esiste, va popolata dal proxy con token e costo
+
+---
+
+## 8bis. Tracking dati guest + admin platform (per la strategia dati BIBI)
+
+- [x] Migration 0002: `users.is_platform_admin`, `restaurants.is_guest/guest_email/guest_phone`, `pairings.language` (applicata a Neon, mirrored in schema.sql + schema.ts)
+- [x] `POST /api/guest/onboarding` — crea un restaurant `is_guest=true` legato alla sessione Express anonima
+- [x] `POST /api/dishes/bulk`, `/api/drinks/bulk`, `/api/pairings/bulk` — endpoint bulk save che funzionano sia per loggati sia per ospiti (helper `requireSession` + `sessionRestaurantId`)
+- [x] `GET /api/admin/restaurants`, `/api/admin/restaurants/:slug/full`, `/api/admin/stats` — endpoint protetti da `requireAdmin` (richiede `users.is_platform_admin=TRUE`)
+- [x] Script `tsx scripts/grant-admin.ts <email>` — promuove un utente a platform admin
+- [x] `db/ADMIN-QUERIES.sql` — query SQL d'esempio per consultazione diretta su Neon
+- [x] Frontend: il form di onboarding ospite chiama `/api/guest/onboarding` non bloccante; `handleReviewConfirm` salva dishes+drinks e poi pairings (sia per ospiti che per loggati)
 
 ---
 
