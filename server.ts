@@ -104,8 +104,19 @@ async function startServer() {
   // Health check: minimo, no DB. Render lo usa per healthCheckPath in
   // render.yaml. Risponde anche se Neon e' down — questo deliberatamente
   // tiene il servizio up nelle finestre di degrado parziale.
+  //
+  // `commit` proviene dalla env var RENDER_GIT_COMMIT che Render espone
+  // automaticamente sui Web Service: utile per capire dal client quale
+  // build e' attivo, anche dopo un cold-restart che azzera l'uptime
+  // senza essere stato un vero redeploy.
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, ts: Date.now(), uptime: process.uptime() });
+    res.json({
+      ok: true,
+      ts: Date.now(),
+      uptime: process.uptime(),
+      commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || 'local',
+      branch: process.env.RENDER_GIT_BRANCH || null,
+    });
   });
 
   const PgStore = connectPg(session);
