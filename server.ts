@@ -328,7 +328,7 @@ async function startServer() {
   app.post('/api/dishes/bulk', requireSession, async (req, res) => {
     try {
       const rid = sessionRestaurantId(req)!;
-      const list: Array<{ name?: string; category?: string; fullIngredients?: string }> = Array.isArray(req.body?.dishes) ? req.body.dishes : [];
+      const list: Array<{ name?: string; category?: string; fullIngredients?: string; price?: string }> = Array.isArray(req.body?.dishes) ? req.body.dishes : [];
       if (list.length === 0) return res.json({ inserted: 0 });
       const rows = list
         .filter(d => d.name && String(d.name).trim().length > 0)
@@ -337,6 +337,7 @@ async function startServer() {
           name: String(d.name).trim(),
           ingredients: (d.fullIngredients || '').trim() || null,
           description: (d.category || '').trim() || null, // category AI come hint testuale
+          priceCents: parsePriceCents(d.price),
         }));
       if (rows.length === 0) return res.json({ inserted: 0 });
       const inserted = await db.insert(foodItems).values(rows).returning({ id: foodItems.id });

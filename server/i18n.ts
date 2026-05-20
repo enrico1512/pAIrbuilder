@@ -104,7 +104,7 @@ export function menuScanFallbackUserText(lang: Lang): string {
 export function menuExtractSystemPrompt(lang: Lang, isDrinks: boolean, itemCount: number): string {
   const schema = isDrinks
     ? `{"category": "Vino Rosso|Vino Bianco|Vino Rosato|Bollicine|Vino Dolce", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
-    : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "..."}`;
+    : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "...", "price": "..."}`;
 
   if (lang === 'en') {
     return `You are an expert on restaurant menus. Extract the details of the listed items from the menu's text/images.
