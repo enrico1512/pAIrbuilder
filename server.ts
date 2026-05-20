@@ -3,6 +3,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
 import bcrypt from 'bcrypt';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -56,7 +58,55 @@ async function startServer() {
   // express-session non vede la request come "secure" e rifiuta di settare
   // il cookie Secure → la sessione non persiste tra chiamate in produzione.
   app.set('trust proxy', 1);
+
+  // Header di sicurezza standard (X-Content-Type-Options, X-Frame-Options DENY,
+  // Strict-Transport-Security, ecc.). CSP disabilitata per ora: la SPA Vite
+  // carica script con hash inline che andrebbero whitelistati nella policy —
+  // lavoro da fare quando il dominio finale e' fissato (pairbuilder.ambrosiavino.com).
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+
   app.use(express.json({ limit: '50mb' }));
+
+  // ---------- Rate limiting -----------------------------------------------
+  // Tre profili:
+  //  - authLimiter: 10 req / 5 min per IP sui POST auth (login/register/etc),
+  //    previene brute force credentials.
+  //  - aiLimiter: 60 req / min per IP sugli endpoint AI proxy, previene abuse
+  //    delle chiavi API server-side.
+  //  - defaultLimiter: 300 req / min per IP — copre tutto il resto, evita DoS.
+  const authLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: false,
+    message: { error: 'Troppi tentativi, riprova fra qualche minuto.' },
+  });
+  const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Troppe richieste AI, riprova fra qualche secondo.' },
+  });
+  const defaultLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Exclude health checks dal rate limit globale — Render lo interroga di
+    // frequente per il monitoring.
+    skip: (req) => req.path === '/api/health',
+    message: { error: 'Troppe richieste, riprova fra qualche secondo.' },
+  });
+  app.use(defaultLimiter);
+
+  // Health check: minimo, no DB. Render lo usa per healthCheckPath in
+  // render.yaml. Risponde anche se Neon e' down — questo deliberatamente
+  // tiene il servizio up nelle finestre di degrado parziale.
+  app.get('/api/health', (_req, res) => {
+    res.json({ ok: true, ts: Date.now(), uptime: process.uptime() });
+  });
 
   const PgStore = connectPg(session);
   app.use(
@@ -113,7 +163,7 @@ async function startServer() {
   // ====================================================================
   // AUTH
   // ====================================================================
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
       const { restaurantName, slug, email, password, fullName, preferredLanguage } = req.body || {};
       if (!restaurantName || !slug || !email || !password) {
@@ -154,7 +204,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
       const { email, password } = req.body || {};
       if (!email || !password) {
@@ -651,7 +701,7 @@ async function startServer() {
   // ====================================================================
   // AI Proxy: Gemini (chiave server-side, evita 403/CORS dal browser)
   // ====================================================================
-  app.post('/api/gemini/generate', async (req, res) => {
+  app.post('/api/gemini/generate', aiLimiter, async (req, res) => {
     const { model, contents, config } = req.body;
     const API_KEY = process.env.GEMINI_API_KEY;
     if (!API_KEY) {
@@ -671,7 +721,7 @@ async function startServer() {
   // ====================================================================
   // AI proxies (preservati dal server.ts originale)
   // ====================================================================
-  app.post('/api/vision/ocr', async (req, res) => {
+  app.post('/api/vision/ocr', aiLimiter, async (req, res) => {
     const { image } = req.body;
     const API_KEY = process.env.GOOGLE_CLOUD_VISION_API_KEY;
     if (!API_KEY) {
@@ -712,7 +762,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/openai/extract', async (req, res) => {
+  app.post('/api/openai/extract', aiLimiter, async (req, res) => {
     const { prompt, data, image } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -753,7 +803,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/openai/list-items', async (req, res) => {
+  app.post('/api/openai/list-items', aiLimiter, async (req, res) => {
     const { prompt, data, image } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -795,7 +845,7 @@ async function startServer() {
   });
 
   // --- OpenAI Native Menu Scan (fallback quando Gemini esaurisce quota) ---
-  app.post('/api/openai/menu-scan', async (req, res) => {
+  app.post('/api/openai/menu-scan', aiLimiter, async (req, res) => {
     const { text, images, allowPizzas } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -858,7 +908,7 @@ async function startServer() {
   });
 
   // --- OpenAI Native Batch Extract (fallback quando Gemini esaurisce quota) ---
-  app.post('/api/openai/menu-extract', async (req, res) => {
+  app.post('/api/openai/menu-extract', aiLimiter, async (req, res) => {
     const { text, images, itemNames, type } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -910,7 +960,7 @@ async function startServer() {
   });
 
   // --- OpenAI Native Pairings (fallback quando Gemini esaurisce quota) ---
-  app.post('/api/openai/pairings', async (req, res) => {
+  app.post('/api/openai/pairings', aiLimiter, async (req, res) => {
     const { restaurantInfo, dishes, drinks: drinksList } = req.body;
     const API_KEY = process.env.OPENAI_API_KEY;
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
