@@ -108,6 +108,7 @@
         "price": "Price"
       },
       "empty": "No drinks detected",
+      "priorityHint": "Tick up to 5 drinks: the AI will prioritize them in pairings (your strategic picks).",
       "categoryOptions": {
         "redWine": "Red Wine",
         "whiteWine": "White Wine",

@@ -108,6 +108,7 @@
         "price": "Prezzo"
       },
       "empty": "Nessuna bevanda rilevata",
+      "priorityHint": "Spunta fino a 5 drink: l'AI li userà in via prioritaria negli abbinamenti (sono le tue selezioni strategiche).",
       "categoryOptions": {
         "redWine": "Vino Rosso",
         "whiteWine": "Vino Bianco",
