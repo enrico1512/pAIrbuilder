@@ -6,6 +6,11 @@ export interface Dish {
   category: string;
   name: string;
   fullIngredients: string;
+  /** Prezzo estratto dall'AI come stringa raw (es. "12,50", "€ 8.00", "15€"). Il
+   *  backend lo normalizza a price_cents prima dell'INSERT. Opzionale: se l'AI
+   *  non lo trova nel menu, il campo resta vuoto e il piatto viene salvato
+   *  comunque con price_cents=NULL. */
+  price?: string;
 }
 
 export type DrinkCategory = 
@@ -484,7 +489,7 @@ async function extractItemsBatch(
     
     TASK: Find these SPECIFIC items in the provided images/text and extract their full details.
     
-    SCHEMA FOR DISHES: { category, name, fullIngredients }
+    SCHEMA FOR DISHES: { category, name, fullIngredients, price }
     SCHEMA FOR DRINKS: { category, producer, product, price, vintage, volume, origin }
     
     RULES:
@@ -515,13 +520,14 @@ async function extractItemsBatch(
       properties: {
         items: {
           type: Type.ARRAY,
-          items: type === "dishes" 
+          items: type === "dishes"
             ? {
                 type: Type.OBJECT,
                 properties: {
                   category: { type: Type.STRING },
                   name: { type: Type.STRING },
                   fullIngredients: { type: Type.STRING },
+                  price: { type: Type.STRING },
                 },
                 required: ["category", "name"]
               }
