@@ -50,6 +50,15 @@ declare module 'express-session' {
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
 const PORT = Number(process.env.PORT) || 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+// Flag diagnostico locale: con DEBUG_AI=1 ogni chiamata proxy AI logga
+// prompt + risposta troncati, utile per capire cosa l'AI estrae davvero.
+const DEBUG_AI = process.env.DEBUG_AI === '1';
+function aiLog(label: string, payload: unknown) {
+  if (!DEBUG_AI) return;
+  const s = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  const head = s.length > 2000 ? s.slice(0, 2000) + `\n... [+${s.length - 2000} char]` : s;
+  console.log(`\n[AI ${label}] ${head}\n`);
+}
 
 async function startServer() {
   const app = express();
@@ -719,8 +728,16 @@ async function startServer() {
       return res.status(500).json({ error: tError(getLang(req), 'missingGeminiKey') });
     }
     try {
+      if (DEBUG_AI) {
+        const firstText = contents?.[0]?.parts?.find((p: any) => p.text)?.text || '';
+        const promptHead = firstText.slice(0, 400).replace(/\s+/g, ' ');
+        const nImages = (contents?.[0]?.parts || []).filter((p: any) => p.inlineData).length;
+        const nTexts = (contents?.[0]?.parts || []).filter((p: any) => p.text).length;
+        aiLog('Gemini REQ', `model=${model} | parts: ${nTexts} text + ${nImages} images | promptHead: "${promptHead}..."`);
+      }
       const genai = new GoogleGenAI({ apiKey: API_KEY });
       const response = await genai.models.generateContent({ model, contents, config });
+      aiLog('Gemini RES', response.text || '');
       res.json({ text: response.text });
     } catch (error: any) {
       const status = error?.status || 500;
@@ -911,6 +928,7 @@ async function startServer() {
       console.log(
         `[OpenAI menu-scan] dishes:${(parsed.dishes || []).length} drinks:${(parsed.drinks || []).length}`
       );
+      aiLog('OpenAI menu-scan FULL', parsed);
       res.json(parsed);
     } catch (error) {
       console.error('OpenAI menu-scan Error:', error);
@@ -962,7 +980,12 @@ async function startServer() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'OpenAI error');
       const parsed = JSON.parse(result.choices[0].message.content);
-      console.log(`[OpenAI menu-extract] items:${(parsed.items || []).length}`);
+      console.log(`[OpenAI menu-extract] type=${type} items:${(parsed.items || []).length}`);
+      if (DEBUG_AI && type === 'drinks') {
+        const cats = (parsed.items || []).map((it: any) => it.category || '(no category)');
+        aiLog('OpenAI menu-extract DRINKS categories', cats);
+      }
+      aiLog('OpenAI menu-extract FULL', parsed);
       res.json(parsed);
     } catch (error) {
       console.error('OpenAI menu-extract Error:', error);
