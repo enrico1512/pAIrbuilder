@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Check, BrainCircuit, Edit2, BarChart3, TrendingUp, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { type Dish, type Drink, analyzeDrinksWithMenu } from "../lib/gemini";
+import { type Dish, type Drink, analyzeDrinksWithMenu, isWineCategory } from "../lib/gemini";
 
 interface ReviewProps {
   foodPages: { dishes: Dish[]; drinks: Drink[] }[];
@@ -62,7 +62,12 @@ export default function MenuReview({
     (a.category || "VARIE").localeCompare(b.category || "VARIE", undefined, { sensitivity: 'base' })
   );
 
-  const sortedDrinks = [...allDrinks].sort((a, b) => 
+  // Solo i vini sono mostrati nella tabella drinks e usati per gli abbinamenti.
+  // Birre/cocktail/spirits restano in `allDrinks` (verranno comunque salvati
+  // nel DB via /api/drinks/bulk dal parent), ma non sono visibili qui ne'
+  // passati a generatePairings.
+  const visibleDrinks = allDrinks.filter(d => isWineCategory(d.category));
+  const sortedDrinks = [...visibleDrinks].sort((a, b) =>
     (a.category || "Altro").localeCompare(b.category || "Altro", undefined, { sensitivity: 'base' })
   );
 
@@ -73,9 +78,12 @@ export default function MenuReview({
   const totalDrinkPages = Math.max(1, Math.ceil(sortedDrinks.length / ITEMS_PER_PAGE));
 
   useEffect(() => {
-    if (allDrinks.length > 0 && !analysis && !isAnalyzing) {
+    // Passiamo solo i vini: l'analisi strategica e' pensata per la cantina,
+    // non per birre/cocktail che vivono nel DB ma fuori dal pairing.
+    const wineSubset = allDrinks.filter(d => isWineCategory(d.category));
+    if (wineSubset.length > 0 && !analysis && !isAnalyzing) {
       setIsAnalyzing(true);
-      analyzeDrinksWithMenu(allDishes, allDrinks).then(res => {
+      analyzeDrinksWithMenu(allDishes, wineSubset).then(res => {
         setAnalysis(res);
         setIsAnalyzing(false);
       });
@@ -449,7 +457,7 @@ export default function MenuReview({
                 <p className="text-[10px] text-white mt-1 uppercase">{t('menuReview.sectionHint')}</p>
                 <p className="text-[10px] text-brand-accent mt-1 leading-snug">
                   ⭐ {t('menuReview.drinks.priorityHint')}
-                  <span className="ml-2 opacity-60">({allDrinks.filter(d => d.isPriority).length}/5)</span>
+                  <span className="ml-2 opacity-60">({visibleDrinks.filter(d => d.isPriority).length}/5)</span>
                 </p>
               </div>
               <button

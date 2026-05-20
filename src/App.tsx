@@ -15,7 +15,7 @@ import { useAuth } from "./lib/auth";
 import { toBcp47, currencyFor } from "./i18n/languageMap";
 
 const AUTH_DISMISS_KEY = "pairbuilder.authDismissed";
-import { generatePairings, extractMenuData, listItemNames, type Pairing, type Dish, type Drink } from "./lib/gemini";
+import { generatePairings, extractMenuData, listItemNames, isWineCategory, type Pairing, type Dish, type Drink } from "./lib/gemini";
 import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
 
@@ -452,11 +452,16 @@ export default function App() {
         [...extractedDrinksMemory, ...allDrinks].forEach(d => {
           if (d.product) drinkMap.set(d.product.toLowerCase().trim(), d);
         });
-        const finalDrinks = Array.from(drinkMap.values()) as Drink[];
+        const allUniqueDrinks = Array.from(drinkMap.values()) as Drink[];
+        // L'AI di pairing usa SOLO vini. Birre/cocktail/spirits restano in
+        // allUniqueDrinks (e nel /api/drinks/bulk salvataggio) per le analisi
+        // cross-ristorante, ma non entrano negli abbinamenti — coerente col
+        // filtro UI di MenuReview che mostra solo i vini.
+        const finalDrinks = allUniqueDrinks.filter(d => isWineCategory(d.category));
 
         const pairingPromise = generatePairings(
-          restaurantContext, 
-          finalDishes, 
+          restaurantContext,
+          finalDishes,
           finalDrinks,
           `${context.lang}|${context.currency}`
         );
