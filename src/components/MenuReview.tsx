@@ -447,6 +447,10 @@ export default function MenuReview({
                   {t('menuReview.drinks.heading')}
                 </h3>
                 <p className="text-[10px] text-white mt-1 uppercase">{t('menuReview.sectionHint')}</p>
+                <p className="text-[10px] text-brand-accent mt-1 leading-snug">
+                  ⭐ {t('menuReview.drinks.priorityHint')}
+                  <span className="ml-2 opacity-60">({allDrinks.filter(d => d.isPriority).length}/5)</span>
+                </p>
               </div>
               <button
                 onClick={startDraftDrink}
