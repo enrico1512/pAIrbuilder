@@ -76,19 +76,19 @@ export function listItemsSystemPrompt(lang: Lang): string {
 
 export function menuScanSystemPrompt(lang: Lang, allowPizzas: boolean): string {
   if (lang === 'en') {
-    return `You are an expert on Italian restaurant menus. Your task is to identify EVERY food item and EVERY WINE in the text or images provided.
+    return `You are an expert on restaurant menus. Your task is to identify EVERY food item and EVERY DRINK in the text or images provided.
 RULES:
 - Extract ALL dishes (antipasti, first courses, main courses, sides, desserts${allowPizzas ? ', pizzas' : ''}).
-- WINES ONLY for the "drinks" list: red, white, rosé wines, sparkling/spumante/champagne/prosecco/franciacorta, sweet/passito/moscato wines, fortified wines (marsala, port). COMPLETELY IGNORE beers, cocktails, spirits (whisky, gin, rum, vodka, tequila, grappa), liqueurs, amari, digestives, non-wine aperitifs (aperol, campari), soft drinks, juices, water, coffee, tea. If a section is called "Beers", "Cocktails", "Spirits", "Soft Drinks", "Sodas", SKIP IT ENTIRELY.
+- Extract ALL drinks of any category for the "drinks" list: wines (red, white, rosé, sparkling/spumante/champagne/prosecco/franciacorta, sweet/passito/moscato, fortified marsala/port), beers (lager/IPA/stout/artisanal), cocktails (alcoholic + alcohol-free), spirits/distillati (whisky, gin, rum, vodka, tequila, grappa, brandy, cognac), liqueurs, amari, digestives, aperitifs (aperol, campari, vermouth, limoncello, sambuca), soft drinks, juices, water, coffee, tea. Sections titled "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", "Amari", "Caffetteria" are ALL in-scope — DO NOT skip them.
 ${allowPizzas ? '' : '- DO NOT extract pizzas.\n'}- Return ONLY the names, exactly as written in the menu.
 - Reply ONLY with valid JSON in the format: {"dishes": ["name1", "name2", ...], "drinks": ["name1", "name2", ...]}
 - DO NOT add prices, descriptions, or other fields. Only names as strings.
 - If multiple images are provided, analyze ALL of them.`;
   }
-  return `Sei un esperto di menu di ristoranti italiani. Il tuo compito è identificare OGNI voce di cibo e OGNI VINO presente nel testo o nelle immagini fornite.
+  return `Sei un esperto di menu di ristoranti. Il tuo compito è identificare OGNI voce di cibo e OGNI BEVANDA presente nel testo o nelle immagini fornite.
 REGOLE:
 - Estrai TUTTI i piatti (antipasti, primi, secondi, contorni, dessert${allowPizzas ? ', pizze' : ''}).
-- SOLO VINI per la lista "drinks": vini rossi, bianchi, rosati, bollicine/spumanti/champagne/prosecco/franciacorta, vini dolci/passiti/moscato, vini liquorosi (marsala, porto). IGNORA COMPLETAMENTE birre, cocktail, distillati (whisky, gin, rum, vodka, tequila, grappa), liquori, amari, digestivi, aperitivi non a base vino (aperol, campari), soft drink, succhi, acqua, caffè, tè. Se una sezione si chiama "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", SALTALA INTERAMENTE.
+- Estrai TUTTE le bevande di qualsiasi categoria per la lista "drinks": vini (rossi, bianchi, rosati, bollicine/spumanti/champagne/prosecco/franciacorta, dolci/passiti/moscato, liquorosi marsala/porto), birre (lager/IPA/stout/artigianali), cocktail (alcolici + analcolici), spirits/distillati (whisky, gin, rum, vodka, tequila, grappa, brandy, cognac), liquori, amari, digestivi, aperitivi (aperol, campari, vermouth, limoncello, sambuca), soft drink, succhi, acqua, caffè, tè. Le sezioni "Birre", "Cocktail", "Distillati", "Spiriti", "Soft Drink", "Bibite", "Amari", "Caffetteria" sono TUTTE da estrarre — NON saltarle.
 ${allowPizzas ? '' : '- NON estrarre pizze.\n'}- Restituisci SOLO i nomi, esattamente come scritti nel menu.
 - Rispondi SOLO con JSON valido nel formato: {"dishes": ["nome1", "nome2", ...], "drinks": ["nome1", "nome2", ...]}
 - NON aggiungere prezzi, descrizioni o altri campi. Solo nomi come stringhe.
@@ -103,17 +103,17 @@ export function menuScanFallbackUserText(lang: Lang): string {
 
 export function menuExtractSystemPrompt(lang: Lang, isDrinks: boolean, itemCount: number): string {
   const schema = isDrinks
-    ? `{"category": "Vino Rosso|Vino Bianco|Vino Rosato|Bollicine|Vino Dolce", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
+    ? `{"category": "Vino Rosso|Vino Bianco|Vino Rosato|Bollicine|Vino Dolce|Birra|Birra Artigianale|Cocktail|Cocktail Analcolico|Whisky|Gin|Rum|Vodka|Tequila|Grappa|Spirits|Amaro|Liquore|Digestivo|Aperitivo|Acqua|Soft Drink|Succo|The|Caffe'|Altro", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
     : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "...", "price": "..."}`;
 
   if (lang === 'en') {
     return `You are an expert on restaurant menus. Extract the details of the listed items from the menu's text/images.
 Reply ONLY with JSON: {"items": [${schema}, ...]}
-${isDrinks ? 'WINES ONLY: the "items" list must contain ONLY wines (allowed categories: Vino Rosso, Vino Bianco, Vino Rosato, Bollicine, Vino Dolce). If a listed item is NOT a wine (beer, cocktail, spirit, liqueur, amaro, soft drink, etc.), SKIP IT and do not include it in the output.\n' : ''}Extract ALL ${itemCount} listed items (skipping only those invalid per the rules above). DO NOT skip any valid item. Analyze all provided images.`;
+${isDrinks ? 'ALL DRINKS in-scope: wines, beers, cocktails, spirits/distillati, liqueurs, amari, digestives, aperitifs, soft drinks, juices, water, coffee, tea. Assign the most specific category from the allowed list. Vintage applies to wines only; leave empty for other categories.\n' : ''}Extract ALL ${itemCount} listed items. DO NOT skip any item. Analyze all provided images.`;
   }
   return `Sei un esperto di menu di ristoranti. Estrai i dettagli delle voci indicate dal testo/immagini del menu.
 Rispondi SOLO con JSON: {"items": [${schema}, ...]}
-${isDrinks ? 'SOLO VINI: la lista "items" deve contenere ESCLUSIVAMENTE vini (categorie ammesse: Vino Rosso, Vino Bianco, Vino Rosato, Bollicine, Vino Dolce). Se una voce indicata NON è un vino (birra, cocktail, distillato, liquore, amaro, soft drink, ecc.), SALTALA e non includerla nell\'output.\n' : ''}Estrai TUTTE le ${itemCount} voci indicate (saltando solo quelle non valide come da regole sopra). NON saltare nessuna voce valida. Analizza tutte le immagini fornite.`;
+${isDrinks ? 'TUTTE LE BEVANDE in-scope: vini, birre, cocktail, spirits/distillati, liquori, amari, digestivi, aperitivi, soft drink, succhi, acqua, caffè, tè. Assegna la categoria più specifica dalla lista ammessa. L\'annata si applica solo ai vini; lascia vuota per le altre categorie.\n' : ''}Estrai TUTTE le ${itemCount} voci indicate. NON saltare nessuna voce. Analizza tutte le immagini fornite.`;
 }
 
 export function menuExtractUserPrefix(lang: Lang, itemNames: string[]): string {
