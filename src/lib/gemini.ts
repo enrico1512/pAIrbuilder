@@ -141,13 +141,16 @@ async function safeGenerateContent(modelName: string, contents: any, config: any
   }
 }
 
-// ─── OpenAI Fallback Helpers (+ Anthropic come ultima rete) ──────────────────
+// ─── Provider helpers ────────────────────────────────────────────────────────
+// Chain attuale (gestita dai chiamanti listItemNames/extractItemsBatch):
+//   1) Anthropic Claude Sonnet — primario (output 64k, batching server-side)
+//   2) OpenAI GPT-4o          — fallback
+//   3) Gemini 2.0 Flash       — ultima rete (oggi free tier esaurito)
 
 async function callAnthropicMenuScan(
   pageData: { text?: string; imageBase64?: string; images?: string[] },
   allowPizzas: boolean = false
 ): Promise<{ dishes: string[]; drinks: string[] }> {
-  console.warn("[AI Fallback] OpenAI fallito → using Anthropic menu-scan...");
   const allImages: string[] = [];
   if (pageData.imageBase64) allImages.push(pageData.imageBase64);
   if (pageData.images) allImages.push(...pageData.images);
@@ -175,7 +178,6 @@ async function callAnthropicMenuExtract(
   itemNames: string[],
   type: "dishes" | "drinks"
 ): Promise<any[]> {
-  console.warn(`[AI Fallback] OpenAI fallito → using Anthropic menu-extract for ${type}...`);
   const combinedText = pageSources.map(s => s.text || "").filter(Boolean).join("\n\n");
   const allImages: string[] = [];
   for (const s of pageSources) {
@@ -203,7 +205,6 @@ async function callOpenAIMenuScan(
   pageData: { text?: string; imageBase64?: string; images?: string[] },
   allowPizzas: boolean = false
 ): Promise<{ dishes: string[]; drinks: string[] }> {
-  console.warn("[AI Fallback] Gemini quota → using OpenAI menu-scan...");
   // Limita le immagini per evitare di sforare il TPM OpenAI (tier 1 = 30k):
   // se c'e' testo PDF gia' ricco le saltiamo, altrimenti cap a MAX_IMAGES.
   const allImages: string[] = [];
@@ -211,25 +212,21 @@ async function callOpenAIMenuScan(
   if (pageData.images) allImages.push(...pageData.images);
   const imgsForAi = chooseImagesForAi(pageData.text, allImages);
 
-  try {
-    const response = await fetch("/api/openai/menu-scan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: pageData.text,
-        images: imgsForAi.length > 0 ? imgsForAi : undefined,
-        allowPizzas
-      })
-    });
-    if (!response.ok) throw new Error(`OpenAI menu-scan failed: ${response.status}`);
-    const data = await response.json();
-    return {
-      dishes: Array.isArray(data.dishes) ? data.dishes.filter((d: any) => typeof d === "string") : [],
-      drinks: Array.isArray(data.drinks) ? data.drinks.filter((d: any) => typeof d === "string") : []
-    };
-  } catch (openaiErr) {
-    return callAnthropicMenuScan(pageData, allowPizzas);
-  }
+  const response = await fetch("/api/openai/menu-scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: pageData.text,
+      images: imgsForAi.length > 0 ? imgsForAi : undefined,
+      allowPizzas
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI menu-scan failed: ${response.status}`);
+  const data = await response.json();
+  return {
+    dishes: Array.isArray(data.dishes) ? data.dishes.filter((d: any) => typeof d === "string") : [],
+    drinks: Array.isArray(data.drinks) ? data.drinks.filter((d: any) => typeof d === "string") : []
+  };
 }
 
 async function callOpenAIMenuExtract(
@@ -237,9 +234,7 @@ async function callOpenAIMenuExtract(
   itemNames: string[],
   type: "dishes" | "drinks"
 ): Promise<any[]> {
-  console.warn(`[AI Fallback] Gemini quota → using OpenAI menu-extract for ${type}...`);
   const combinedText = pageSources.map(s => s.text || "").filter(Boolean).join("\n\n");
-  // Collect ALL images from all page sources, then trim (vedi chooseImagesForAi)
   const allImages: string[] = [];
   for (const s of pageSources) {
     if (s.imageBase64) allImages.push(s.imageBase64);
@@ -247,23 +242,19 @@ async function callOpenAIMenuExtract(
   }
   const imgsForAi = chooseImagesForAi(combinedText, allImages);
 
-  try {
-    const response = await fetch("/api/openai/menu-extract", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: combinedText || undefined,
-        images: imgsForAi.length > 0 ? imgsForAi : undefined,
-        itemNames,
-        type
-      })
-    });
-    if (!response.ok) throw new Error(`OpenAI menu-extract failed: ${response.status}`);
-    const data = await response.json();
-    return Array.isArray(data.items) ? data.items : [];
-  } catch (openaiErr) {
-    return callAnthropicMenuExtract(pageSources, itemNames, type);
-  }
+  const response = await fetch("/api/openai/menu-extract", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: combinedText || undefined,
+      images: imgsForAi.length > 0 ? imgsForAi : undefined,
+      itemNames,
+      type
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI menu-extract failed: ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 async function callOpenAIPairings(
@@ -523,40 +514,49 @@ export async function listItemNames(
     imgsForAi.forEach(img => parts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
     if (pageData.text) parts.push({ text: `RAW CONTENT TO SCAN:\n${pageData.text}` });
 
-    let result: any;
+    // Chain primaria: Anthropic (output 64k, niente troncamento su carte
+    // lunghe). Fallback: OpenAI (16k output, max_tokens 16384). Ultima
+    // rete: Gemini (oggi free tier esaurito, ma resta utile su tier paid
+    // o per emergenze). Il prompt costruito sopra e' usato solo dal ramo
+    // Gemini perche' specifica responseSchema/inlineData; Anthropic e
+    // OpenAI hanno i loro prompt server-side (menuScanSystemPrompt).
     try {
-      const resultText = await safeGenerateContent(
-        "gemini-2.0-flash",
-        [{ parts }],
-        {
-          temperature: 0,
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              dishes: { type: Type.ARRAY, items: { type: Type.STRING } },
-              drinks: { type: Type.ARRAY, items: { type: Type.STRING } },
-            },
-            required: ["dishes", "drinks"],
-          },
-        }
-      );
-      result = repairJson(resultText || "{}");
-    } catch (geminiErr) {
-      console.warn("[listItemNames] Gemini failed, falling back to OpenAI:", geminiErr);
+      return await callAnthropicMenuScan(pageData, allowPizzas);
+    } catch (anthropicErr) {
+      console.warn("[listItemNames] Anthropic failed, trying OpenAI:", anthropicErr);
       try {
         return await callOpenAIMenuScan(pageData, allowPizzas);
       } catch (openaiErr) {
-        console.error("[listItemNames] OpenAI fallback also failed:", openaiErr);
-        return { dishes: [], drinks: [] };
+        console.warn("[listItemNames] OpenAI failed, last resort Gemini:", openaiErr);
+        try {
+          const resultText = await safeGenerateContent(
+            "gemini-2.0-flash",
+            [{ parts }],
+            {
+              temperature: 0,
+              maxOutputTokens: 8192,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  dishes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  drinks: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+                required: ["dishes", "drinks"],
+              },
+            }
+          );
+          const result = repairJson(resultText || "{}");
+          return {
+            dishes: (Array.isArray(result.dishes) ? result.dishes : []).map(cleanAccents),
+            drinks: (Array.isArray(result.drinks) ? result.drinks : []).map(cleanAccents)
+          };
+        } catch (geminiErr) {
+          console.error("[listItemNames] All providers failed:", geminiErr);
+          return { dishes: [], drinks: [] };
+        }
       }
     }
-
-    return {
-      dishes: (Array.isArray(result.dishes) ? result.dishes : []).map(cleanAccents),
-      drinks: (Array.isArray(result.drinks) ? result.drinks : []).map(cleanAccents)
-    };
   } catch (e) {
     console.error("Discovery failed:", e);
     return { dishes: [], drinks: [] };
@@ -670,33 +670,40 @@ async function extractItemsBatch(
     });
   };
 
+  // Chain primaria: Anthropic (output 64k + batching server-side adattivo
+  // sopra i 60 nomi). Fallback: OpenAI. Ultima rete: Gemini (free tier
+  // oggi esaurito, ma resta utile su tier paid o per emergenze).
+  try {
+    const anthropicItems = await callAnthropicMenuExtract(pageSources, itemNames, type);
+    if (anthropicItems.length > 0) return parseItems({ items: anthropicItems });
+    console.warn(`[extractItemsBatch] Anthropic returned empty for ${type}, trying OpenAI...`);
+  } catch (anthropicErr) {
+    console.warn(`[extractItemsBatch] Anthropic failed for ${type}, trying OpenAI:`, anthropicErr);
+  }
+
+  try {
+    const openaiItems = await callOpenAIMenuExtract(pageSources, itemNames, type);
+    if (openaiItems.length > 0) return parseItems({ items: openaiItems });
+    console.warn(`[extractItemsBatch] OpenAI returned empty for ${type}, last resort Gemini...`);
+  } catch (openaiErr) {
+    console.warn(`[extractItemsBatch] OpenAI failed for ${type}, last resort Gemini:`, openaiErr);
+  }
+
   try {
     const apiCall = safeGenerateContent("gemini-2.0-flash", [{ parts }], config);
     const resultText = await timeoutPromise(120000, apiCall).catch(e => {
       console.warn(`Batch timeout (120s) for ${type}:`, e.message);
       return null;
     });
-
     if (resultText) {
       const result = repairJson(resultText);
       const items = parseItems(result);
       if (items.length > 0) return items;
     }
-
-    // Gemini returned nothing or timed out → try OpenAI
-    console.warn(`[extractItemsBatch] Gemini returned empty for ${type}, trying OpenAI...`);
-    const openaiItems = await callOpenAIMenuExtract(pageSources, itemNames, type);
-    return parseItems({ items: openaiItems });
-
-  } catch (e) {
-    console.warn(`[extractItemsBatch] Gemini failed for ${type}, trying OpenAI:`, e);
-    try {
-      const openaiItems = await callOpenAIMenuExtract(pageSources, itemNames, type);
-      return parseItems({ items: openaiItems });
-    } catch (openaiErr) {
-      console.error(`[extractItemsBatch] OpenAI fallback also failed for ${type}:`, openaiErr);
-      return [];
-    }
+    return [];
+  } catch (geminiErr) {
+    console.error(`[extractItemsBatch] All providers failed for ${type}:`, geminiErr);
+    return [];
   }
 }
 

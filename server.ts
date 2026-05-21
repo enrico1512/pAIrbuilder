@@ -74,7 +74,7 @@ function aiLog(label: string, payload: unknown) {
  * (clampato a 30s) e ritentiamo fino a MAX_ATTEMPTS volte. I 401/400 e gli
  * altri non-429 falliscono subito.
  */
-async function openaiFetchWithRetry(url: string, init: RequestInit, label: string): Promise<Response> {
+async function openaiFetchWithRetry(url: string, init: RequestInit, label: string): Promise<globalThis.Response> {
   const MAX_ATTEMPTS = 4;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const resp = await fetch(url, init);
@@ -1097,13 +1097,62 @@ async function startServer() {
   });
 
   // ====================================================================
-  // Anthropic Claude (third fallback dopo Gemini + OpenAI). Vantaggio:
-  // output window molto piu' alta (64k) → niente troncatura su liste
-  // lunghe (es. carte vini 200+ ref). Prompt caching disponibile.
-  // Usa Sonnet 4.6 per qualita' sul prompt complesso.
+  // Anthropic Claude — provider primario per estrazione menu.
+  //  - Sonnet 4.6: output window 64k token (8x GPT-4o, 4x Gemini Flash)
+  //  - max_tokens calcolato dinamicamente in base alla dimensione attesa
+  //    dell'output, evita troncamenti silenziosi su liste lunghe.
+  //  - Server-side batching adattivo su menu-extract: se la lista voci
+  //    supera ANTHROPIC_BATCH_SIZE, il server divide in batch ed esegue
+  //    in parallelo con concorrenza limitata. Permette al client di
+  //    chiamare con "tutta la lista" (carte da 300-400+ voci) senza
+  //    doversi occupare del fan-out.
   // ====================================================================
   const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
-  const ANTHROPIC_MAX_TOKENS = 16384;
+  const ANTHROPIC_HARD_MAX_TOKENS = 64000;
+  const ANTHROPIC_MIN_MAX_TOKENS = 4000;
+  const ANTHROPIC_BATCH_SIZE = 60;        // voci per batch server-side
+  const ANTHROPIC_BATCH_CONCURRENCY = 3;  // batch paralleli (rispetta RPM)
+
+  /**
+   * Stima i max_tokens necessari per una call Anthropic, clampati al
+   * cap Sonnet (64k). Sovrastima del 30% rispetto al best-guess: il
+   * costo non e' il limite (paghi solo gli output emessi), quindi
+   * meglio largo che troncato.
+   */
+  function anthropicMaxTokens(estimatedOutput: number): number {
+    const padded = Math.ceil(estimatedOutput * 1.3);
+    return Math.min(ANTHROPIC_HARD_MAX_TOKENS, Math.max(ANTHROPIC_MIN_MAX_TOKENS, padded));
+  }
+
+  /**
+   * Una call ad Anthropic con parsing JSON tollerante a wrapping
+   * (la API non supporta prefill assistant, l'output puo' essere
+   * preceduto/seguito da prosa). Estrae il primo blocco { ... }.
+   */
+  async function callAnthropic(opts: {
+    apiKey: string;
+    systemPrompt: string;
+    userContent: any[];
+    maxTokens: number;
+  }): Promise<any> {
+    const anthropic = new Anthropic({ apiKey: opts.apiKey });
+    const response = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: opts.maxTokens,
+      system: opts.systemPrompt,
+      messages: [{ role: 'user', content: opts.userContent }],
+    });
+    const rawText = response.content
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('');
+    const firstBrace = rawText.indexOf('{');
+    const lastBrace = rawText.lastIndexOf('}');
+    const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
+      ? rawText.slice(firstBrace, lastBrace + 1)
+      : rawText;
+    return JSON.parse(jsonStr);
+  }
 
   app.post('/api/anthropic/menu-scan', aiLimiter, async (req, res) => {
     const { text, images, allowPizzas } = req.body;
@@ -1111,9 +1160,18 @@ async function startServer() {
     if (!API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
     const lang = getLang(req);
     const imageList: string[] = Array.isArray(images) ? images : req.body.image ? [req.body.image] : [];
-    const systemPrompt = menuScanSystemPrompt(lang, !!allowPizzas);
+    const systemPrompt = menuScanSystemPrompt(lang, !!allowPizzas)
+      + '\n\nReturn ONLY a valid JSON object with the structure described above. Start your response with `{` and end with `}`. No markdown, no explanation.';
 
-    console.log(`[Anthropic menu-scan] input: text=${text?.length || 0} chars, images=${imageList.length}`);
+    const textLen = text?.length || 0;
+    // Discovery output ≈ lista nomi: stimiamo 1 voce ogni ~150 char di
+    // input testuale (riadattato dai test sul Garzadori: 12k char testo
+    // → ~200 voci output). Ogni voce ≈ 25 token nella lista.
+    const estimatedItems = Math.max(50, Math.ceil(textLen / 150) + imageList.length * 40);
+    const estimatedOutput = estimatedItems * 30;
+    const maxTokens = anthropicMaxTokens(estimatedOutput);
+
+    console.log(`[Anthropic menu-scan] text=${textLen} chars, images=${imageList.length}, est_items=${estimatedItems}, max_tokens=${maxTokens}`);
 
     const userContent: any[] = [
       { type: 'text', text: text ? `MENU:\n${text}` : (lang === 'en' ? 'Extract all items from the menu in the provided images.' : 'Estrai tutte le voci dal menu dalle immagini fornite.') },
@@ -1123,28 +1181,8 @@ async function startServer() {
     }
 
     try {
-      const anthropic = new Anthropic({ apiKey: API_KEY });
-      const response = await anthropic.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: ANTHROPIC_MAX_TOKENS,
-        system: systemPrompt + '\n\nReturn ONLY a valid JSON object with the structure described above. Start your response with `{` and end with `}`. No markdown, no explanation.',
-        messages: [
-          { role: 'user', content: userContent },
-        ],
-      });
-      const rawText = response.content
-        .filter((b: any) => b.type === 'text')
-        .map((b: any) => b.text)
-        .join('');
-      // Sonnet 4.6 non supporta prefill: estraiamo il JSON cercando il
-      // primo "{" e l'ultimo "}" (gestisce eventuale wrapping con prosa).
-      const firstBrace = rawText.indexOf('{');
-      const lastBrace = rawText.lastIndexOf('}');
-      const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
-        ? rawText.slice(firstBrace, lastBrace + 1)
-        : rawText;
-      const parsed = JSON.parse(jsonStr);
-      console.log(`[Anthropic menu-scan] dishes:${(parsed.dishes || []).length} drinks:${(parsed.drinks || []).length}`);
+      const parsed = await callAnthropic({ apiKey: API_KEY, systemPrompt, userContent, maxTokens });
+      console.log(`[Anthropic menu-scan] result: dishes=${(parsed.dishes || []).length} drinks=${(parsed.drinks || []).length}`);
       aiLog('Anthropic menu-scan FULL', parsed);
       res.json(parsed);
     } catch (error: any) {
@@ -1160,44 +1198,50 @@ async function startServer() {
     const lang = getLang(req);
     const imageList: string[] = Array.isArray(images) ? images : req.body.image ? [req.body.image] : [];
     const isDrinks = type === 'drinks';
-    const systemPrompt = menuExtractSystemPrompt(lang, isDrinks, itemNames?.length ?? 0);
+    const names: string[] = Array.isArray(itemNames) ? itemNames : [];
 
-    const userContent: any[] = [
-      { type: 'text', text: menuExtractUserPrefix(lang, itemNames || []) + (text || (lang === 'en' ? 'See images' : 'Vedi immagini')) },
-    ];
-    for (const img of imageList) {
-      userContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } });
-    }
+    // Batching server-side: oltre la soglia spezza in batch e li
+    // processa in ondate parallele. Sotto la soglia (caso comune con
+    // client batch=10) e' una sola call diretta.
+    const batches: string[][] = names.length > ANTHROPIC_BATCH_SIZE
+      ? Array.from(
+          { length: Math.ceil(names.length / ANTHROPIC_BATCH_SIZE) },
+          (_, i) => names.slice(i * ANTHROPIC_BATCH_SIZE, (i + 1) * ANTHROPIC_BATCH_SIZE)
+        )
+      : [names];
+
+    console.log(`[Anthropic menu-extract] type=${type} total=${names.length} batches=${batches.length}`);
+
+    const runBatch = async (batch: string[]): Promise<any[]> => {
+      const systemPrompt = menuExtractSystemPrompt(lang, isDrinks, batch.length)
+        + '\n\nReturn ONLY a valid JSON object {"items": [...]}. Start your response with `{` and end with `}`. No markdown, no explanation.';
+      const userContent: any[] = [
+        { type: 'text', text: menuExtractUserPrefix(lang, batch) + (text || (lang === 'en' ? 'See images' : 'Vedi immagini')) },
+      ];
+      for (const img of imageList) {
+        userContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } });
+      }
+      // 250 token per voce e' un upper bound generoso (categoria + 6
+      // campi stringa + struttura JSON). Per 60 voci ≈ 15k token.
+      const maxTokens = anthropicMaxTokens(batch.length * 250);
+      const parsed = await callAnthropic({ apiKey: API_KEY, systemPrompt, userContent, maxTokens });
+      return Array.isArray(parsed.items) ? parsed.items : [];
+    };
 
     try {
-      const anthropic = new Anthropic({ apiKey: API_KEY });
-      const response = await anthropic.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: ANTHROPIC_MAX_TOKENS,
-        system: systemPrompt + '\n\nReturn ONLY a valid JSON object {"items": [...]}. Start your response with `{` and end with `}`. No markdown, no explanation.',
-        messages: [
-          { role: 'user', content: userContent },
-        ],
-      });
-      const rawText = response.content
-        .filter((b: any) => b.type === 'text')
-        .map((b: any) => b.text)
-        .join('');
-      // Sonnet 4.6 non supporta prefill: estraiamo il JSON cercando il
-      // primo "{" e l'ultimo "}" (gestisce eventuale wrapping con prosa).
-      const firstBrace = rawText.indexOf('{');
-      const lastBrace = rawText.lastIndexOf('}');
-      const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
-        ? rawText.slice(firstBrace, lastBrace + 1)
-        : rawText;
-      const parsed = JSON.parse(jsonStr);
-      console.log(`[Anthropic menu-extract] type=${type} items:${(parsed.items || []).length}`);
+      const allItems: any[] = [];
+      for (let i = 0; i < batches.length; i += ANTHROPIC_BATCH_CONCURRENCY) {
+        const wave = batches.slice(i, i + ANTHROPIC_BATCH_CONCURRENCY);
+        const results = await Promise.all(wave.map(runBatch));
+        results.forEach(items => allItems.push(...items));
+      }
+      console.log(`[Anthropic menu-extract] result: items=${allItems.length}/${names.length}`);
       if (DEBUG_AI && type === 'drinks') {
-        const cats = (parsed.items || []).map((it: any) => it.category || '(no category)');
+        const cats = allItems.map((it: any) => it.category || '(no category)');
         aiLog('Anthropic menu-extract DRINKS categories', cats);
       }
-      aiLog('Anthropic menu-extract FULL', parsed);
-      res.json(parsed);
+      aiLog('Anthropic menu-extract FULL', { items: allItems });
+      res.json({ items: allItems });
     } catch (error: any) {
       console.error('Anthropic menu-extract Error:', error?.message || error);
       res.status(error?.status || 500).json({ error: error?.message || 'Anthropic extract failed' });
