@@ -145,11 +145,21 @@ git add . && git commit -m "..."
 git push origin main      # poi su Replit Shell: git pull origin main
 ```
 
-## Credenziali utente demo (seed)
+## Account nel DB
 
+**Account operativo di Enrico** (usare questo per i test su menu/drink reali):
+- Email: `enrico.patrizio@ambrosiavino.com`
+- Ristorante: `Ambrosia Vino`
+- `is_platform_admin = TRUE`
+- Password: la conosce solo Enrico — non chiederla, non scriverla in file.
+
+**Utente demo seed** (usare solo se serve un sandbox pulito):
 - Email: `owner@trattoriademo.it`
-- Password: `password123`
+- Password: `password123` (resettabile con `tsx scripts/fix-demo-password.ts`)
 - Restaurant ID: `11111111-1111-1111-1111-111111111111`
+- `is_platform_admin = TRUE`
+
+Per elencare gli utenti DB in qualsiasi momento: `tsx scripts/check-admins.ts`.
 
 ## Convenzioni di codice
 
