@@ -723,17 +723,28 @@ export async function extractMenuData(
   const allowPizzas = allDrinksText.includes("birra") || allDrinksText.includes("beer") || allDrinksText.includes("cocktail");
 
   if (!hints) {
+    // Discovery PARALLELA su tutte le source. Prima era seriale (for/await)
+    // → con 2 PDF erano 2 call sequenziali da ~30s = 60s.
+    // Anthropic ha RPM ampio (Tier 1 ≈ 50 RPM su Sonnet), 2-5 call
+    // parallele non saturano.
     const allSources = [...menuData, ...drinksData];
-    for (const src of allSources) {
-      const pageScan = await listItemNames(src, allowPizzas);
+    const scans = await Promise.all(
+      allSources.map(src => listItemNames(src, allowPizzas))
+    );
+    for (const pageScan of scans) {
       dishesToBatch = [...new Set([...dishesToBatch, ...pageScan.dishes])];
       drinksToBatch = [...new Set([...drinksToBatch, ...pageScan.drinks])];
       if (onProgress) onProgress(dishesToBatch.length, drinksToBatch.length);
     }
   }
 
-  // 2. Batch extraction using parallelism with concurrency limit
-  const BATCH_SIZE = 10;
+  // 2. Batch extraction parallela.
+  //    BATCH_SIZE=40: stava comodo su Anthropic (64k output) e sul
+  //    fallback OpenAI (16k output, ~40 voci × 250 token ≈ 10k). Prima
+  //    era 10, troppo piccolo: 22 batch × 30s seriali ≈ 5-6 min.
+  //    Concurrency=4: anche se un batch fallisce e cade su OpenAI, OpenAI
+  //    Tier 1 (30k TPM) regge 4 call parallele da ~7k input/10k output.
+  const BATCH_SIZE = 40;
   const allDishes: Dish[] = [];
   const allDrinks: Drink[] = [];
 
@@ -774,7 +785,10 @@ export async function extractMenuData(
     });
   }
   
-  await runWithConcurrency(allTasks, 2); // Lower concurrency to avoid rate limits and improve quality
+  // Concurrency 4: Anthropic Tier 1 regge tranquillamente. Prima era 2
+  // per stare prudente su OpenAI Tier 1 (30k TPM), ma il primario ora
+  // e' Anthropic e i batch sono piu' grossi → meno chiamate totali.
+  await runWithConcurrency(allTasks, 4);
 
   // Deduplicate carefully: allow same product if producer or vintage is different
   const dishMap = new Map();

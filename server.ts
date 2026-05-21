@@ -61,6 +61,9 @@ const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 // Flag diagnostico locale: con DEBUG_AI=1 ogni chiamata proxy AI logga
 // prompt + risposta troncati, utile per capire cosa l'AI estrae davvero.
 const DEBUG_AI = process.env.DEBUG_AI === '1';
+// Base URL OpenAI configurabile per puntare a un gateway aggregator
+// (es. OpenRouter: https://openrouter.ai/api/v1). Default = OpenAI diretto.
+const OPENAI_CHAT_URL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1') + '/chat/completions';
 function aiLog(label: string, payload: unknown) {
   if (!DEBUG_AI) return;
   const s = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
@@ -875,7 +878,7 @@ async function startServer() {
           image_url: { url: `data:image/jpeg;base64,${image}` },
         });
       }
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -916,7 +919,7 @@ async function startServer() {
           image_url: { url: `data:image/jpeg;base64,${image}` },
         });
       }
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -971,7 +974,7 @@ async function startServer() {
     }
 
     try {
-      const response = await openaiFetchWithRetry('https://api.openai.com/v1/chat/completions', {
+      const response = await openaiFetchWithRetry(OPENAI_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -1030,7 +1033,7 @@ async function startServer() {
     }
 
     try {
-      const response = await openaiFetchWithRetry('https://api.openai.com/v1/chat/completions', {
+      const response = await openaiFetchWithRetry(OPENAI_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -1071,7 +1074,7 @@ async function startServer() {
     const userContent = `${pairingsUserPrefix(lang, restaurantInfo)}${JSON.stringify(dishes)}\n\n${drinksLabel}: ${JSON.stringify(drinksList)}`;
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -1111,7 +1114,12 @@ async function startServer() {
   const ANTHROPIC_HARD_MAX_TOKENS = 64000;
   const ANTHROPIC_MIN_MAX_TOKENS = 4000;
   const ANTHROPIC_BATCH_SIZE = 60;        // voci per batch server-side
-  const ANTHROPIC_BATCH_CONCURRENCY = 3;  // batch paralleli (rispetta RPM)
+  const ANTHROPIC_BATCH_CONCURRENCY = 5;  // batch paralleli (Tier 1 = 50 RPM, max 5 ondate)
+  // baseURL opzionale: undefined → endpoint diretto Anthropic. Settando
+  // ANTHROPIC_BASE_URL in .env (es. a https://openrouter.ai/api/v1) si
+  // ridireziona TUTTO il traffico Anthropic verso un gateway aggregator
+  // senza altre modifiche al codice. Anthropic SDK supporta baseURL.
+  const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || undefined;
 
   /**
    * Stima i max_tokens necessari per una call Anthropic, clampati al
@@ -1135,7 +1143,7 @@ async function startServer() {
     userContent: any[];
     maxTokens: number;
   }): Promise<any> {
-    const anthropic = new Anthropic({ apiKey: opts.apiKey });
+    const anthropic = new Anthropic({ apiKey: opts.apiKey, baseURL: ANTHROPIC_BASE_URL });
     const response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: opts.maxTokens,
