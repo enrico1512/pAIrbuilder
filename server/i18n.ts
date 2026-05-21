@@ -106,14 +106,21 @@ export function menuExtractSystemPrompt(lang: Lang, isDrinks: boolean, itemCount
     ? `{"category": "Vino Rosso|Vino Bianco|Vino Rosato|Bollicine|Vino Dolce|Birra|Birra Artigianale|Cocktail|Cocktail Analcolico|Whisky|Gin|Rum|Vodka|Tequila|Grappa|Spirits|Amaro|Liquore|Digestivo|Aperitivo|Acqua|Soft Drink|Succo|The|Caffe'|Altro", "producer": "...", "product": "...", "price": "...", "vintage": "...", "origin": "..."}`
     : `{"category": "ANTIPASTI|PRIMI|SECONDI|DESSERT|...", "name": "...", "fullIngredients": "...", "price": "..."}`;
 
+  // CRITICAL: l'AI tendeva a tradurre i contenuti del menu (es. ingredienti
+  // in inglese anche se il menu era italiano). Regola esplicita di NON
+  // tradurre, valida sia per "lang=en" che "lang=it" — la lingua del menu
+  // sorgente puo' essere diversa dalla lingua UI dell'utente.
+  const noTranslateEn = `\nCRITICAL — PRESERVE SOURCE LANGUAGE: Copy field values (name, fullIngredients, producer, product, origin) EXACTLY as they appear in the menu. NEVER translate to English or any other language. If the source says "Baccalà alla Vicentina con polenta morbida di Marano", you write that — do NOT write "Cod Vicentina style with soft Marano polenta". The category and the JSON keys stay in the schema language; only VALUES must mirror the source.`;
+  const noTranslateIt = `\nCRITICO — PRESERVA LA LINGUA SORGENTE: Copia i valori dei campi (name, fullIngredients, producer, product, origin) ESATTAMENTE come appaiono nel menu. NON tradurre MAI in inglese o in altre lingue. Se il menu dice "Baccalà alla Vicentina con polenta morbida di Marano", scrivi cosi' — NON scrivere "Cod Vicentina style with soft polenta". Le category e le chiavi JSON restano nella lingua dello schema; solo i VALORI devono rispecchiare la fonte.`;
+
   if (lang === 'en') {
     return `You are an expert on restaurant menus. Extract the details of the listed items from the menu's text/images.
 Reply ONLY with JSON: {"items": [${schema}, ...]}
-${isDrinks ? 'ALL DRINKS in-scope: wines, beers, cocktails, spirits/distillati, liqueurs, amari, digestives, aperitifs, soft drinks, juices, water, coffee, tea. Assign the most specific category from the allowed list. Vintage applies to wines only; leave empty for other categories.\n' : ''}Extract ALL ${itemCount} listed items. DO NOT skip any item. Analyze all provided images.`;
+${isDrinks ? 'ALL DRINKS in-scope: wines, beers, cocktails, spirits/distillati, liqueurs, amari, digestives, aperitifs, soft drinks, juices, water, coffee, tea. Assign the most specific category from the allowed list. Vintage applies to wines only; leave empty for other categories.\n' : ''}Extract ALL ${itemCount} listed items. DO NOT skip any item. Analyze all provided images.${noTranslateEn}`;
   }
   return `Sei un esperto di menu di ristoranti. Estrai i dettagli delle voci indicate dal testo/immagini del menu.
 Rispondi SOLO con JSON: {"items": [${schema}, ...]}
-${isDrinks ? 'TUTTE LE BEVANDE in-scope: vini, birre, cocktail, spirits/distillati, liquori, amari, digestivi, aperitivi, soft drink, succhi, acqua, caffè, tè. Assegna la categoria più specifica dalla lista ammessa. L\'annata si applica solo ai vini; lascia vuota per le altre categorie.\n' : ''}Estrai TUTTE le ${itemCount} voci indicate. NON saltare nessuna voce. Analizza tutte le immagini fornite.`;
+${isDrinks ? 'TUTTE LE BEVANDE in-scope: vini, birre, cocktail, spirits/distillati, liquori, amari, digestivi, aperitivi, soft drink, succhi, acqua, caffè, tè. Assegna la categoria più specifica dalla lista ammessa. L\'annata si applica solo ai vini; lascia vuota per le altre categorie.\n' : ''}Estrai TUTTE le ${itemCount} voci indicate. NON saltare nessuna voce. Analizza tutte le immagini fornite.${noTranslateIt}`;
 }
 
 export function menuExtractUserPrefix(lang: Lang, itemNames: string[]): string {

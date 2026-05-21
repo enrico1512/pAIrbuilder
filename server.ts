@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { and, eq } from 'drizzle-orm';
 import { GoogleGenAI } from '@google/genai';
+import Anthropic from '@anthropic-ai/sdk';
 import * as XLSX from 'xlsx';
 import { db, pool } from './db/client';
 import {
@@ -58,6 +59,32 @@ function aiLog(label: string, payload: unknown) {
   const s = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
   const head = s.length > 2000 ? s.slice(0, 2000) + `\n... [+${s.length - 2000} char]` : s;
   console.log(`\n[AI ${label}] ${head}\n`);
+}
+
+/**
+ * fetch verso OpenAI con retry sui 429 (rate limit TPM). OpenAI suggerisce
+ * il delay nel messaggio errore ("Please try again in 13.16s"); lo onoriamo
+ * (clampato a 30s) e ritentiamo fino a MAX_ATTEMPTS volte. I 401/400 e gli
+ * altri non-429 falliscono subito.
+ */
+async function openaiFetchWithRetry(url: string, init: RequestInit, label: string): Promise<Response> {
+  const MAX_ATTEMPTS = 4;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const resp = await fetch(url, init);
+    if (resp.ok || resp.status !== 429) return resp;
+    if (attempt === MAX_ATTEMPTS) return resp;
+    // Peek body senza consumarlo per il caller: clono la response.
+    const cloned = resp.clone();
+    let bodyText = '';
+    try { bodyText = await cloned.text(); } catch {}
+    const m = /try again in ([\d.]+)s/i.exec(bodyText);
+    const suggested = m ? parseFloat(m[1]) : (2 ** attempt);
+    const waitSec = Math.min(30, Math.max(1, suggested));
+    console.warn(`[${label}] OpenAI 429 attempt ${attempt}/${MAX_ATTEMPTS}, sleeping ${waitSec.toFixed(1)}s before retry`);
+    await new Promise(r => setTimeout(r, waitSec * 1000));
+  }
+  // Unreachable (sopra ritorniamo prima), ma TS lo vuole esplicito
+  return fetch(url, init);
 }
 
 async function startServer() {
@@ -727,22 +754,49 @@ async function startServer() {
     if (!API_KEY) {
       return res.status(500).json({ error: tError(getLang(req), 'missingGeminiKey') });
     }
-    try {
-      if (DEBUG_AI) {
-        const firstText = contents?.[0]?.parts?.find((p: any) => p.text)?.text || '';
-        const promptHead = firstText.slice(0, 400).replace(/\s+/g, ' ');
-        const nImages = (contents?.[0]?.parts || []).filter((p: any) => p.inlineData).length;
-        const nTexts = (contents?.[0]?.parts || []).filter((p: any) => p.text).length;
-        aiLog('Gemini REQ', `model=${model} | parts: ${nTexts} text + ${nImages} images | promptHead: "${promptHead}..."`);
+    if (DEBUG_AI) {
+      const firstText = contents?.[0]?.parts?.find((p: any) => p.text)?.text || '';
+      const promptHead = firstText.slice(0, 400).replace(/\s+/g, ' ');
+      const nImages = (contents?.[0]?.parts || []).filter((p: any) => p.inlineData).length;
+      const nTexts = (contents?.[0]?.parts || []).filter((p: any) => p.text).length;
+      aiLog('Gemini REQ', `model=${model} | parts: ${nTexts} text + ${nImages} images | promptHead: "${promptHead}..."`);
+    }
+    const genai = new GoogleGenAI({ apiKey: API_KEY });
+    // Retry su 429 con backoff: Gemini comunica il retryDelay nel campo
+    // RetryInfo del payload errore. Lo onoriamo (clampato a 30s) e
+    // ritentiamo fino a 3 volte totali. Se finiamo gli attempt, riportiamo
+    // 429 al client cosi' che il frontend possa eventualmente fare il
+    // proprio fallback (es. OpenAI).
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await genai.models.generateContent({ model, contents, config });
+        aiLog('Gemini RES', response.text || '');
+        return res.json({ text: response.text });
+      } catch (error: any) {
+        const status = error?.status || 500;
+        const msg = String(error?.message || '');
+        const isRateLimit = status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(msg);
+        // Distinguiamo per-minute (transitorio, vale la pena attendere) da
+        // daily/free-tier (esaurito per la giornata: il retry e' tempo
+        // sprecato — meglio fallire subito e lasciar fare al fallback
+        // OpenAI lato client).
+        const isDailyExhausted = /FreeTier|PerDay|RequestsPerDay/i.test(msg);
+        if (isRateLimit && !isDailyExhausted && attempt < MAX_ATTEMPTS) {
+          const retryMatch = /retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(msg);
+          const suggested = retryMatch ? parseFloat(retryMatch[1]) : (2 ** attempt);
+          const waitSec = Math.min(30, Math.max(1, suggested));
+          console.warn(`[Gemini Proxy] 429 on attempt ${attempt}/${MAX_ATTEMPTS}, sleeping ${waitSec.toFixed(1)}s before retry`);
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+          continue;
+        }
+        if (isDailyExhausted) {
+          console.warn(`[Gemini Proxy] daily quota exhausted — skipping retries, returning 429 immediately so client can fallback to OpenAI`);
+        } else {
+          console.error(`[Gemini Proxy] Error (${status}) after ${attempt} attempt(s):`, msg);
+        }
+        return res.status(status).json({ error: msg || 'Gemini generation failed', status });
       }
-      const genai = new GoogleGenAI({ apiKey: API_KEY });
-      const response = await genai.models.generateContent({ model, contents, config });
-      aiLog('Gemini RES', response.text || '');
-      res.json({ text: response.text });
-    } catch (error: any) {
-      const status = error?.status || 500;
-      console.error(`[Gemini Proxy] Error (${status}):`, error?.message || error);
-      res.status(status).json({ error: error?.message || 'Gemini generation failed', status });
     }
   });
 
@@ -908,7 +962,7 @@ async function startServer() {
     }
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await openaiFetchWithRetry('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -919,9 +973,13 @@ async function startServer() {
           ],
           response_format: { type: 'json_object' },
           temperature: 0,
-          max_tokens: 4096,
+          // Una carta vini puo' avere 200+ referenze: ognuna ~30 char + JSON
+          // overhead ≈ 50 token per voce, 216 voci ≈ 11k token output. Con
+          // max_tokens=4096 (precedente) la lista si tronca silenziosamente.
+          // Aumentato al massimo supportato da gpt-4o/gpt-4o-mini (16384).
+          max_tokens: 16384,
         }),
-      });
+      }, 'menu-scan');
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'OpenAI error');
       const parsed = JSON.parse(result.choices[0].message.content);
@@ -963,7 +1021,7 @@ async function startServer() {
     }
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await openaiFetchWithRetry('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify({
@@ -976,7 +1034,7 @@ async function startServer() {
           temperature: 0,
           max_tokens: 8192,
         }),
-      });
+      }, 'menu-extract');
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'OpenAI error');
       const parsed = JSON.parse(result.choices[0].message.content);
@@ -1026,6 +1084,114 @@ async function startServer() {
     } catch (error) {
       console.error('OpenAI pairings Error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Pairings failed' });
+    }
+  });
+
+  // ====================================================================
+  // Anthropic Claude (third fallback dopo Gemini + OpenAI). Vantaggio:
+  // output window molto piu' alta (64k) → niente troncatura su liste
+  // lunghe (es. carte vini 200+ ref). Prompt caching disponibile.
+  // Usa Sonnet 4.6 per qualita' sul prompt complesso.
+  // ====================================================================
+  const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+  const ANTHROPIC_MAX_TOKENS = 16384;
+
+  app.post('/api/anthropic/menu-scan', aiLimiter, async (req, res) => {
+    const { text, images, allowPizzas } = req.body;
+    const API_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
+    const lang = getLang(req);
+    const imageList: string[] = Array.isArray(images) ? images : req.body.image ? [req.body.image] : [];
+    const systemPrompt = menuScanSystemPrompt(lang, !!allowPizzas);
+
+    console.log(`[Anthropic menu-scan] input: text=${text?.length || 0} chars, images=${imageList.length}`);
+
+    const userContent: any[] = [
+      { type: 'text', text: text ? `MENU:\n${text}` : (lang === 'en' ? 'Extract all items from the menu in the provided images.' : 'Estrai tutte le voci dal menu dalle immagini fornite.') },
+    ];
+    for (const img of imageList) {
+      userContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } });
+    }
+
+    try {
+      const anthropic = new Anthropic({ apiKey: API_KEY });
+      const response = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
+        system: systemPrompt + '\n\nReturn ONLY a valid JSON object with the structure described above. Start your response with `{` and end with `}`. No markdown, no explanation.',
+        messages: [
+          { role: 'user', content: userContent },
+        ],
+      });
+      const rawText = response.content
+        .filter((b: any) => b.type === 'text')
+        .map((b: any) => b.text)
+        .join('');
+      // Sonnet 4.6 non supporta prefill: estraiamo il JSON cercando il
+      // primo "{" e l'ultimo "}" (gestisce eventuale wrapping con prosa).
+      const firstBrace = rawText.indexOf('{');
+      const lastBrace = rawText.lastIndexOf('}');
+      const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
+        ? rawText.slice(firstBrace, lastBrace + 1)
+        : rawText;
+      const parsed = JSON.parse(jsonStr);
+      console.log(`[Anthropic menu-scan] dishes:${(parsed.dishes || []).length} drinks:${(parsed.drinks || []).length}`);
+      aiLog('Anthropic menu-scan FULL', parsed);
+      res.json(parsed);
+    } catch (error: any) {
+      console.error('Anthropic menu-scan Error:', error?.message || error);
+      res.status(error?.status || 500).json({ error: error?.message || 'Anthropic scan failed' });
+    }
+  });
+
+  app.post('/api/anthropic/menu-extract', aiLimiter, async (req, res) => {
+    const { text, images, itemNames, type } = req.body;
+    const API_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
+    const lang = getLang(req);
+    const imageList: string[] = Array.isArray(images) ? images : req.body.image ? [req.body.image] : [];
+    const isDrinks = type === 'drinks';
+    const systemPrompt = menuExtractSystemPrompt(lang, isDrinks, itemNames?.length ?? 0);
+
+    const userContent: any[] = [
+      { type: 'text', text: menuExtractUserPrefix(lang, itemNames || []) + (text || (lang === 'en' ? 'See images' : 'Vedi immagini')) },
+    ];
+    for (const img of imageList) {
+      userContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img } });
+    }
+
+    try {
+      const anthropic = new Anthropic({ apiKey: API_KEY });
+      const response = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
+        system: systemPrompt + '\n\nReturn ONLY a valid JSON object {"items": [...]}. Start your response with `{` and end with `}`. No markdown, no explanation.',
+        messages: [
+          { role: 'user', content: userContent },
+        ],
+      });
+      const rawText = response.content
+        .filter((b: any) => b.type === 'text')
+        .map((b: any) => b.text)
+        .join('');
+      // Sonnet 4.6 non supporta prefill: estraiamo il JSON cercando il
+      // primo "{" e l'ultimo "}" (gestisce eventuale wrapping con prosa).
+      const firstBrace = rawText.indexOf('{');
+      const lastBrace = rawText.lastIndexOf('}');
+      const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
+        ? rawText.slice(firstBrace, lastBrace + 1)
+        : rawText;
+      const parsed = JSON.parse(jsonStr);
+      console.log(`[Anthropic menu-extract] type=${type} items:${(parsed.items || []).length}`);
+      if (DEBUG_AI && type === 'drinks') {
+        const cats = (parsed.items || []).map((it: any) => it.category || '(no category)');
+        aiLog('Anthropic menu-extract DRINKS categories', cats);
+      }
+      aiLog('Anthropic menu-extract FULL', parsed);
+      res.json(parsed);
+    } catch (error: any) {
+      console.error('Anthropic menu-extract Error:', error?.message || error);
+      res.status(error?.status || 500).json({ error: error?.message || 'Anthropic extract failed' });
     }
   });
 

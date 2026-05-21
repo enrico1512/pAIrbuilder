@@ -250,4 +250,47 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 
 ---
 
-*Ultimo aggiornamento: 19 maggio 2026*
+## 📌 Lavori in corso (sessione del 20 maggio sera, da riprendere)
+
+**Test di estrazione AI in corso su PDF Garzadori** (`test-files/menu.pdf` 33 piatti + `test-files/drinks.pdf` 216 referenze di cui ~109 vini secondo ChatGPT).
+
+### Fix di codice già fatti (working tree, NON committati)
+
+| File | Modifica |
+|---|---|
+| `.gitignore` | esclude `.claude/` e `test-files/` |
+| `server.ts` | flag `DEBUG_AI`, helper `aiLog`, alias `/export`, helper `openaiFetchWithRetry`, gestione 429 daily-vs-minute su Gemini, 2 nuovi endpoint `/api/anthropic/menu-scan` e `/api/anthropic/menu-extract`, `max_tokens: 16384` su menu-scan OpenAI |
+| `server/i18n.ts` | prompt OpenAI vincola lingua source (regola "NEVER translate") |
+| `src/lib/gemini.ts` | helper `chooseImagesForAi` (no immagini se testo PDF ≥ 1500 char, cap a 12), rimosso filtro `isWineCategory` premature, fallback chain Gemini→OpenAI→Anthropic nei callOpenAI* |
+| `.env.example` | doc su `ANTHROPIC_API_KEY` |
+| `.env` | DEBUG_AI=1 + chiave Anthropic (locale, mai committata). **Da ruotare**: la chiave attuale è stata incollata in chat. |
+| `package.json` | nuova dep `@anthropic-ai/sdk` |
+
+### Commit locale già pronto (NON pushato, in attesa di GitHub Desktop)
+
+```
+14a7f0f feat(admin): alias breve /export per il download Excel
+```
+
+### Risultati test progressivi
+
+| Test | Drink trovati (scan) | Vini estratti (review) | Tempo |
+|---|---|---|---|
+| 1 — baseline | 129 | 11 | ~5 min |
+| 2 — dopo retry/no-translate/no-images | 129 | 11 (fix UI filtro applicato dopo) | lento |
+| 3 — `max_tokens: 16384` | **153** | **56** | in corso |
+| 4 — con Anthropic fallback (chain a 3) | **da testare** | atteso ~109 (numero ChatGPT) | da misurare |
+
+### Prossimi step (in ordine)
+
+1. **Riavvio dev server** con tutte le modifiche attive + chiave Anthropic
+2. **Test 4**: hard refresh browser, rifare upload, contare vini in review
+3. Se ~109 vini → la chain a 3 funziona, si procede col **caching PDF**
+4. **Caching PDF→risultato AI** (~45 min): nuova tabella `ai_extractions_cache` (SHA-256 PK, JSONB result, hit_count). Frontend calcola hash file, GET cache prima dell'estrazione, POST cache dopo. Coerente col modello freemium (1° upload free, dal 2° serve account paid).
+5. Eventuale **refactoring AI gateway** (OpenRouter come unico provider) per semplificare la gestione delle chiavi/fatture
+6. **Sblocco API limits prima del go-live**: Gemini Pay-as-you-go + OpenAI Tier 2+ (vedi memoria `pairbuilder_api_limits.md`)
+7. Ruotare la chiave Anthropic in `.env`
+
+---
+
+*Ultimo aggiornamento: 20 maggio 2026 sera*

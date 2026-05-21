@@ -37,6 +37,24 @@ export interface ExtractionResult {
   drinks: Drink[];
 }
 
+/**
+ * Riduce il payload immagini quando il testo PDF e' gia' ricco, e cappa
+ * il numero massimo di immagini per chiamata. Questo evita di sforare i
+ * limiti token dei provider AI (OpenAI tier 1 = 30k TPM, anche Gemini ha
+ * un cap input-token-per-minute sul free tier).
+ *
+ * Logica:
+ *  - text >= TEXT_THRESHOLD (1500 char) → immagini scartate (testo basta)
+ *  - altrimenti tronca a MAX_IMAGES (12) le prime immagini
+ */
+const TEXT_THRESHOLD = 1500;
+const MAX_IMAGES = 12;
+export function chooseImagesForAi(text: string | undefined, images: string[] | undefined): string[] {
+  if (!images || images.length === 0) return [];
+  if (text && text.length >= TEXT_THRESHOLD) return [];
+  return images.slice(0, MAX_IMAGES);
+}
+
 export interface Pairing {
   dish: string;
   category: string;
@@ -123,33 +141,95 @@ async function safeGenerateContent(modelName: string, contents: any, config: any
   }
 }
 
-// ─── OpenAI Fallback Helpers ─────────────────────────────────────────────────
+// ─── OpenAI Fallback Helpers (+ Anthropic come ultima rete) ──────────────────
+
+async function callAnthropicMenuScan(
+  pageData: { text?: string; imageBase64?: string; images?: string[] },
+  allowPizzas: boolean = false
+): Promise<{ dishes: string[]; drinks: string[] }> {
+  console.warn("[AI Fallback] OpenAI fallito → using Anthropic menu-scan...");
+  const allImages: string[] = [];
+  if (pageData.imageBase64) allImages.push(pageData.imageBase64);
+  if (pageData.images) allImages.push(...pageData.images);
+  const imgsForAi = chooseImagesForAi(pageData.text, allImages);
+
+  const response = await fetch("/api/anthropic/menu-scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: pageData.text,
+      images: imgsForAi.length > 0 ? imgsForAi : undefined,
+      allowPizzas
+    })
+  });
+  if (!response.ok) throw new Error(`Anthropic menu-scan failed: ${response.status}`);
+  const data = await response.json();
+  return {
+    dishes: Array.isArray(data.dishes) ? data.dishes.filter((d: any) => typeof d === "string") : [],
+    drinks: Array.isArray(data.drinks) ? data.drinks.filter((d: any) => typeof d === "string") : []
+  };
+}
+
+async function callAnthropicMenuExtract(
+  pageSources: any[],
+  itemNames: string[],
+  type: "dishes" | "drinks"
+): Promise<any[]> {
+  console.warn(`[AI Fallback] OpenAI fallito → using Anthropic menu-extract for ${type}...`);
+  const combinedText = pageSources.map(s => s.text || "").filter(Boolean).join("\n\n");
+  const allImages: string[] = [];
+  for (const s of pageSources) {
+    if (s.imageBase64) allImages.push(s.imageBase64);
+    if (Array.isArray(s.images)) allImages.push(...s.images);
+  }
+  const imgsForAi = chooseImagesForAi(combinedText, allImages);
+
+  const response = await fetch("/api/anthropic/menu-extract", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: combinedText || undefined,
+      images: imgsForAi.length > 0 ? imgsForAi : undefined,
+      itemNames,
+      type
+    })
+  });
+  if (!response.ok) throw new Error(`Anthropic menu-extract failed: ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
+}
 
 async function callOpenAIMenuScan(
   pageData: { text?: string; imageBase64?: string; images?: string[] },
   allowPizzas: boolean = false
 ): Promise<{ dishes: string[]; drinks: string[] }> {
   console.warn("[AI Fallback] Gemini quota → using OpenAI menu-scan...");
-  // Send ALL images (all pages), not just the first one
+  // Limita le immagini per evitare di sforare il TPM OpenAI (tier 1 = 30k):
+  // se c'e' testo PDF gia' ricco le saltiamo, altrimenti cap a MAX_IMAGES.
   const allImages: string[] = [];
   if (pageData.imageBase64) allImages.push(pageData.imageBase64);
   if (pageData.images) allImages.push(...pageData.images);
+  const imgsForAi = chooseImagesForAi(pageData.text, allImages);
 
-  const response = await fetch("/api/openai/menu-scan", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: pageData.text,
-      images: allImages.length > 0 ? allImages : undefined,
-      allowPizzas
-    })
-  });
-  if (!response.ok) throw new Error(`OpenAI menu-scan failed: ${response.status}`);
-  const data = await response.json();
-  return {
-    dishes: Array.isArray(data.dishes) ? data.dishes.filter((d: any) => typeof d === "string") : [],
-    drinks: Array.isArray(data.drinks) ? data.drinks.filter((d: any) => typeof d === "string") : []
-  };
+  try {
+    const response = await fetch("/api/openai/menu-scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: pageData.text,
+        images: imgsForAi.length > 0 ? imgsForAi : undefined,
+        allowPizzas
+      })
+    });
+    if (!response.ok) throw new Error(`OpenAI menu-scan failed: ${response.status}`);
+    const data = await response.json();
+    return {
+      dishes: Array.isArray(data.dishes) ? data.dishes.filter((d: any) => typeof d === "string") : [],
+      drinks: Array.isArray(data.drinks) ? data.drinks.filter((d: any) => typeof d === "string") : []
+    };
+  } catch (openaiErr) {
+    return callAnthropicMenuScan(pageData, allowPizzas);
+  }
 }
 
 async function callOpenAIMenuExtract(
@@ -159,26 +239,31 @@ async function callOpenAIMenuExtract(
 ): Promise<any[]> {
   console.warn(`[AI Fallback] Gemini quota → using OpenAI menu-extract for ${type}...`);
   const combinedText = pageSources.map(s => s.text || "").filter(Boolean).join("\n\n");
-  // Collect ALL images from all page sources
+  // Collect ALL images from all page sources, then trim (vedi chooseImagesForAi)
   const allImages: string[] = [];
   for (const s of pageSources) {
     if (s.imageBase64) allImages.push(s.imageBase64);
     if (Array.isArray(s.images)) allImages.push(...s.images);
   }
+  const imgsForAi = chooseImagesForAi(combinedText, allImages);
 
-  const response = await fetch("/api/openai/menu-extract", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: combinedText || undefined,
-      images: allImages.length > 0 ? allImages : undefined,
-      itemNames,
-      type
-    })
-  });
-  if (!response.ok) throw new Error(`OpenAI menu-extract failed: ${response.status}`);
-  const data = await response.json();
-  return Array.isArray(data.items) ? data.items : [];
+  try {
+    const response = await fetch("/api/openai/menu-extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: combinedText || undefined,
+        images: imgsForAi.length > 0 ? imgsForAi : undefined,
+        itemNames,
+        type
+      })
+    });
+    if (!response.ok) throw new Error(`OpenAI menu-extract failed: ${response.status}`);
+    const data = await response.json();
+    return Array.isArray(data.items) ? data.items : [];
+  } catch (openaiErr) {
+    return callAnthropicMenuExtract(pageSources, itemNames, type);
+  }
 }
 
 async function callOpenAIPairings(
@@ -429,8 +514,13 @@ export async function listItemNames(
     `;
 
     const parts: any[] = [{ text: prompt }];
-    if (pageData.imageBase64) parts.push({ inlineData: { data: pageData.imageBase64, mimeType: "image/jpeg" } });
-    if (pageData.images) pageData.images.forEach(img => parts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
+    // Scegli le immagini: se il testo PDF e' ricco, evitiamo di mandarle
+    // (saturano i limiti token senza aggiungere informazione utile).
+    const imgsForAi = chooseImagesForAi(pageData.text, [
+      ...(pageData.imageBase64 ? [pageData.imageBase64] : []),
+      ...(pageData.images || []),
+    ]);
+    imgsForAi.forEach(img => parts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
     if (pageData.text) parts.push({ text: `RAW CONTENT TO SCAN:\n${pageData.text}` });
 
     let result: any;
@@ -512,16 +602,23 @@ async function extractItemsBatch(
     5. ${type === 'drinks' ? drinkCategoriesPrompt : ''}
     6. NO DATA LOSS: If a description exists (ingredients, notes), you MUST capture it fully.
     7. NEVER SUMMARIZE or TRUNCATE. PROCEED ITEM BY ITEM WITH MAXIMUM ATTENTION.
+    8. CRITICAL — PRESERVE SOURCE LANGUAGE: Copy field VALUES (name, fullIngredients, producer, product, origin) EXACTLY as written in the menu. NEVER translate. If the menu is in Italian, the values stay in Italian. The "category" field uses the standard labels above; only the values for the other fields must mirror the source.
 
     ${learningService.getLearningPrompt(type)}
   `;
 
   const parts: any[] = [{ text: prompt }];
-  pageSources.forEach(src => {
-    if (src.imageBase64) parts.push({ inlineData: { data: src.imageBase64, mimeType: "image/jpeg" } });
-    if (src.images) src.images.forEach((img: string) => parts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
-    if (src.text) parts.push({ text: `SOURCE CONTENT:\n${src.text}` });
-  });
+  // Aggrega tutto il testo da tutte le source, poi decide se mandare le
+  // immagini (vedi chooseImagesForAi). Per i PDF testuali multi-pagina,
+  // questo riduce drasticamente i token consumati.
+  const combinedText = pageSources.map(s => s.text || "").filter(Boolean).join("\n\n");
+  const allImgs = pageSources.flatMap((s: any) => [
+    ...(s.imageBase64 ? [s.imageBase64] : []),
+    ...(Array.isArray(s.images) ? s.images : []),
+  ]);
+  const imgsForAi = chooseImagesForAi(combinedText, allImgs);
+  imgsForAi.forEach(img => parts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
+  if (combinedText) parts.push({ text: `SOURCE CONTENT:\n${combinedText}` });
 
   const config = {
     temperature: 0,
@@ -657,8 +754,13 @@ export async function extractMenuData(
     const batch = drinksToBatch.slice(i, i + BATCH_SIZE);
     allTasks.push(async () => {
       const results = await extractItemsBatch(combinedSources, batch, "drinks", allowPizzas);
-      // Basic validation + filter out non-wine drinks (only wines are kept)
-      const valid = results.filter(r => r && r.product && isWineCategory(r.category));
+      // Restituiamo TUTTI i drink (vini + birre + cocktail + spirits + the).
+      // Il filtro "solo vini" e' applicato a valle:
+      //  - in MenuReview per la visualizzazione (visibleDrinks)
+      //  - in App.tsx::handleReviewConfirm per i pairing (finalDrinks)
+      // Il salvataggio /api/drinks/bulk riceve invece l'elenco completo,
+      // necessario per la strategia dati BIBI (analisi cross-ristorante).
+      const valid = results.filter(r => r && r.product);
       allDrinks.push(...valid);
       if (onProgress) onProgress(allDishes.length, allDrinks.length);
       return valid;
