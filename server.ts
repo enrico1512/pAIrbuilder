@@ -1,4 +1,11 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+// override:true → il .env locale vince sulle env gia' presenti nel processo.
+// Necessario perche' chi lancia il server (es. Claude Code) puo' iniettare
+// ANTHROPIC_API_KEY="" nell'ambiente, e dotenv di default non sovrascrive
+// le var gia' definite — risultato: chiave Anthropic letta come vuota.
+// In produzione su Render non esiste .env, quindi questa chiamata e' un
+// no-op e le var del dashboard restano autoritative.
+dotenv.config({ override: true });
 import express, { Request, Response, NextFunction } from 'express';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
@@ -727,10 +734,11 @@ async function startServer() {
     const hasVision = !!process.env.GOOGLE_CLOUD_VISION_API_KEY;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasGemini = !!process.env.GEMINI_API_KEY;
+    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
     let status: string;
-    if (hasVision && hasOpenAI) {
+    if (hasVision && hasOpenAI && hasAnthropic) {
       status = 'Full';
-    } else if (!hasVision && !hasOpenAI) {
+    } else if (!hasVision && !hasOpenAI && !hasAnthropic) {
       status = 'Standard';
     } else {
       status = 'Extended';
@@ -739,9 +747,10 @@ async function startServer() {
       visionApiKeyPresent: hasVision,
       openaiApiKeyPresent: hasOpenAI,
       geminiApiKeyPresent: hasGemini,
+      anthropicApiKeyPresent: hasAnthropic,
       appUrl: APP_URL,
       status,
-      message: `Gemini: ${hasGemini ? 'OK' : 'NO'} | Vision OCR: ${hasVision ? 'OK' : 'opzionale'} | OpenAI: ${hasOpenAI ? 'OK' : 'opzionale'}`,
+      message: `Gemini: ${hasGemini ? 'OK' : 'NO'} | OpenAI: ${hasOpenAI ? 'OK' : 'NO'} | Anthropic: ${hasAnthropic ? 'OK' : 'NO'} | Vision OCR: ${hasVision ? 'OK' : 'opzionale'}`,
     });
   });
 
