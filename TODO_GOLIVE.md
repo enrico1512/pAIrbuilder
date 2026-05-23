@@ -1,8 +1,8 @@
 # pAIrbuilder — Checklist per andare online
 
-> **Come usarla**: le voci con `[x]` sono già completate (verificate nel codice il 19 maggio 2026). Le voci con `[ ]` sono ancora da fare. Quando completi un task, basta che me lo dici e aggiorno io la spunta nel file.
+> **Come usarla**: le voci con `[x]` sono già completate (verificate nel codice il 23 maggio 2026). Le voci con `[ ]` sono ancora da fare. Quando completi un task, basta che me lo dici e aggiorno io la spunta nel file.
 
-**Stato complessivo: ~75% pronto** — manca il salvataggio dei documenti caricati, il completamento profilo ristorante, alcuni CRUD e i controlli finali di deploy.
+**Stato complessivo: ~75% pronto** — mancano reset password, completamento profilo ristorante, alcuni CRUD (orari), e i controlli finali di deploy/privacy.
 
 ## 🎯 Obiettivo strategico del prodotto
 
@@ -159,22 +159,23 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 ## 11. Configurazione & Deploy
 
 - [x] File `.env.example` completo
-- [x] File `.replit` configurato
+- [x] Blueprint deploy `render.yaml` (buildCommand, startCommand, healthCheckPath, envVars) — Render lo legge come Blueprint
 - [x] Script `npm run dev` e `npm run build` funzionanti
-- [x] Variabile `PORT` dinamica (no hardcoded)
+- [x] Variabile `PORT` dinamica (no hardcoded; iniettata da Render in prod)
 - [x] Repository su GitHub (`enrico1512/pAIrbuilder`)
-- [x] Replit collegato al repo per deploy
+- [x] **Render collegato al repo**: auto-deploy a ogni push su `main` (region Frankfurt)
 - [x] **README aggiornato** con istruzioni setup, comandi, deploy, schema DB, API, i18n, sicurezza, licenza.
 - [x] **Health check endpoint** `GET /api/health` — liveness leggero, niente DB; usato da Render via `healthCheckPath` in render.yaml.
-- [ ] **Variabili d'ambiente di produzione configurate su Replit** (Secrets):
+- [ ] **Variabili d'ambiente di produzione configurate su Render** (dashboard → Environment; quelle con `sync: false` in render.yaml vanno riempite a mano):
   - `DATABASE_URL`
   - `SESSION_SECRET` (deve essere lungo e casuale)
   - `GEMINI_API_KEY`
   - `OPENAI_API_KEY`
   - `GOOGLE_CLOUD_VISION_API_KEY`
-  - `NODE_ENV=production`
-- [ ] **Dominio custom** (es. `pairbuilder.bibisrl.com`) collegato a Replit Deployments
-- [ ] **HTTPS certificato** (automatico con Replit Deployments)
+  - `APP_URL` (URL pubblico, da aggiornare al dominio custom quando pronto)
+  - (`NODE_ENV=production`, `DATABASE_SSL=true`, `NODE_VERSION=20` già impostate in render.yaml)
+- [ ] **Dominio custom** (`pairbuilder.ambrosiavino.com`) collegato a Render (record CNAME + verifica), poi aggiornare `APP_URL`
+- [ ] **HTTPS certificato** (automatico su Render una volta verificato il dominio custom)
 - [ ] **Test deploy completo end-to-end** su URL pubblico
 
 ---
@@ -208,9 +209,9 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 - [ ] Registra un nuovo ristorante dal sito di produzione
 - [ ] Conferma email (quando attiveremo la verifica)
 - [ ] Login e logout
-- [ ] Upload menu PDF di esempio → **verifica che il file resti scaricabile dallo storico documenti**
+- [ ] Upload menu PDF di esempio → **verifica che i piatti vengano estratti e salvati a DB**
 - [ ] Estrazione AI dei piatti → **verifica che i prezzi vengano salvati a DB**
-- [ ] Upload carta vini → **verifica che il file resti scaricabile**
+- [ ] Upload carta vini → **verifica che i drink vengano estratti e salvati a DB**
 - [ ] Estrazione drink → **verifica prezzo calice + bottiglia salvati**
 - [ ] Generazione abbinamenti
 - [ ] Export PDF degli abbinamenti
@@ -250,4 +251,4 @@ pAIrbuilder è offerto **gratuitamente** ai ristoranti. Il valore di ritorno per
 
 ---
 
-*Ultimo aggiornamento: 19 maggio 2026*
+*Ultimo aggiornamento: 23 maggio 2026*
