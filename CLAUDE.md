@@ -23,8 +23,9 @@ In sviluppo attivo. Modalità ospite funziona; sistema di login presente lato ba
 | ORM | Drizzle ORM |
 | Database | PostgreSQL su Neon (cloud) |
 | Auth | bcrypt + express-session + connect-pg-simple |
-| AI primario | Google Gemini (`@google/genai`) via proxy server |
-| AI fallback | OpenAI |
+| AI gateway | OpenRouter (1 chiave, modello prefissato es. `anthropic/claude-sonnet-4.5`) |
+| AI primario | Anthropic Claude Sonnet (output 64k, batching server-side) |
+| AI fallback | OpenAI GPT-4o → Gemini 2.0 Flash |
 | OCR opzionale | Google Cloud Vision API |
 | File parsing | mammoth (DOCX), pdfjs-dist (PDF), xlsx (Excel) |
 | Export | jspdf, jspdf-autotable |
@@ -116,7 +117,8 @@ Vedi `.env.example`. In locale stanno in `.env`; su Replit nei Secrets.
 - `DATABASE_URL` — connection string Neon (obbligatoria)
 - `SESSION_SECRET` — stringa lunga casuale (obbligatoria)
 - `BCRYPT_ROUNDS` — default 12
-- `GEMINI_API_KEY`, `OPENAI_API_KEY` — chiavi AI (opzionali ma il sito senza non genera pairing)
+- `OPENROUTER_API_KEY` — chiave gateway aziendale BIBI Srl. Se settata, copre tutti e 3 i provider AI (Anthropic, OpenAI, Gemini) via OpenRouter. È il modo consigliato in produzione.
+- `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` — chiavi dirette per provider singolo (usate SOLO se `OPENROUTER_API_KEY` non è settata, es. dev locale con account personali).
 - `GOOGLE_CLOUD_VISION_API_KEY` — opzionale, OCR avanzato
 - `PORT` — default 3000 locale, iniettato da Replit in produzione
 - `APP_URL` — vuoto in locale, iniettato da Replit

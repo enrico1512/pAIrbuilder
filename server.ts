@@ -16,8 +16,10 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { and, eq } from 'drizzle-orm';
-import { GoogleGenAI } from '@google/genai';
-import Anthropic from '@anthropic-ai/sdk';
+// Provider SDK non piu' usati: tutte le chiamate AI passano per
+// l'endpoint openai-compatible (OpenAI diretto o OpenRouter come
+// gateway). Il payload Gemini-style viene convertito in messages
+// openai-style nel proxy /api/gemini/generate.
 import * as XLSX from 'xlsx';
 import { db, pool } from './db/client';
 import {
@@ -61,9 +63,67 @@ const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 // Flag diagnostico locale: con DEBUG_AI=1 ogni chiamata proxy AI logga
 // prompt + risposta troncati, utile per capire cosa l'AI estrae davvero.
 const DEBUG_AI = process.env.DEBUG_AI === '1';
-// Base URL OpenAI configurabile per puntare a un gateway aggregator
-// (es. OpenRouter: https://openrouter.ai/api/v1). Default = OpenAI diretto.
-const OPENAI_CHAT_URL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1') + '/chat/completions';
+
+// =====================================================================
+// AI GATEWAY (OpenRouter): se OPENROUTER_API_KEY e' settata, TUTTE le
+// chiamate AI passano per OpenRouter via endpoint openai-compatible
+// (/api/v1/chat/completions). Una sola chiave, una sola fattura aziendale
+// BIBI Srl, dashboard unica. Markup ~5% sui modelli premium.
+//
+// Se OPENROUTER_API_KEY NON e' settata, fallback al comportamento
+// pre-gateway: 3 chiavi separate (OPENAI/ANTHROPIC/GEMINI) verso i
+// provider diretti. Permette dev locale con account personali.
+// =====================================================================
+const USE_OPENROUTER = !!process.env.OPENROUTER_API_KEY;
+const AI_BASE_URL = USE_OPENROUTER
+  ? (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1')
+  : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+const OPENAI_CHAT_URL = AI_BASE_URL + '/chat/completions';
+
+/** Chiave API da usare per le chiamate openai-style. Con gateway attivo
+ *  e' sempre quella OpenRouter; senza gateway, dipende dal provider. */
+function aiKey(provider: 'openai' | 'anthropic' | 'gemini'): string | undefined {
+  if (USE_OPENROUTER) return process.env.OPENROUTER_API_KEY;
+  if (provider === 'openai') return process.env.OPENAI_API_KEY;
+  if (provider === 'anthropic') return process.env.ANTHROPIC_API_KEY;
+  return process.env.GEMINI_API_KEY;
+}
+
+/** Nome modello compatibile con il provider scelto. Su OpenRouter va
+ *  prefissato (openai/, anthropic/, google/). Per i modelli Gemini
+ *  OpenRouter pretende il suffisso versione esatto (es. `-001`), gli
+ *  alias corti tipo `gemini-2.0-flash` non sono accettati. */
+const OPENROUTER_GEMINI_MAP: Record<string, string> = {
+  'gemini-2.0-flash': 'gemini-2.0-flash-001',
+  'gemini-2.5-flash': 'gemini-2.5-flash',
+  'gemini-2.5-pro': 'gemini-2.5-pro',
+  'gemini-1.5-flash': 'gemini-1.5-flash',
+  'gemini-1.5-pro': 'gemini-1.5-pro',
+};
+function aiModelName(provider: 'openai' | 'anthropic' | 'gemini', model: string): string {
+  if (!USE_OPENROUTER) return model;
+  if (provider === 'gemini') {
+    const remapped = OPENROUTER_GEMINI_MAP[model] || model;
+    return `google/${remapped}`;
+  }
+  return `${provider}/${model}`;
+}
+
+/** Headers per le chiamate openai-style. OpenRouter usa HTTP-Referer e
+ *  X-Title per analytics e ranking dei provider (best practice raccomandata
+ *  dalla loro doc). */
+function aiHeaders(provider: 'openai' | 'anthropic' | 'gemini'): Record<string, string> {
+  const key = aiKey(provider);
+  const h: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${key}`,
+  };
+  if (USE_OPENROUTER) {
+    h['HTTP-Referer'] = APP_URL;
+    h['X-Title'] = 'pAIrbuilder';
+  }
+  return h;
+}
 function aiLog(label: string, payload: unknown) {
   if (!DEBUG_AI) return;
   const s = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
@@ -808,9 +868,10 @@ async function startServer() {
   // ====================================================================
   app.get('/api/config-check', (req, res) => {
     const hasVision = !!process.env.GOOGLE_CLOUD_VISION_API_KEY;
-    const hasOpenAI = !!process.env.OPENAI_API_KEY;
-    const hasGemini = !!process.env.GEMINI_API_KEY;
-    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    // Con il gateway attivo, una sola chiave OpenRouter copre i 3 provider AI.
+    const hasOpenAI = !!aiKey('openai');
+    const hasGemini = !!aiKey('gemini');
+    const hasAnthropic = !!aiKey('anthropic');
     let status: string;
     if (hasVision && hasOpenAI && hasAnthropic) {
       status = 'Full';
@@ -819,23 +880,59 @@ async function startServer() {
     } else {
       status = 'Extended';
     }
+    const gatewayInfo = USE_OPENROUTER ? ' (via OpenRouter gateway)' : '';
     res.json({
       visionApiKeyPresent: hasVision,
       openaiApiKeyPresent: hasOpenAI,
       geminiApiKeyPresent: hasGemini,
       anthropicApiKeyPresent: hasAnthropic,
+      gateway: USE_OPENROUTER ? 'openrouter' : 'direct',
       appUrl: APP_URL,
       status,
-      message: `Gemini: ${hasGemini ? 'OK' : 'NO'} | OpenAI: ${hasOpenAI ? 'OK' : 'NO'} | Anthropic: ${hasAnthropic ? 'OK' : 'NO'} | Vision OCR: ${hasVision ? 'OK' : 'opzionale'}`,
+      message: `Gemini: ${hasGemini ? 'OK' : 'NO'} | OpenAI: ${hasOpenAI ? 'OK' : 'NO'} | Anthropic: ${hasAnthropic ? 'OK' : 'NO'} | Vision OCR: ${hasVision ? 'OK' : 'opzionale'}${gatewayInfo}`,
     });
   });
 
   // ====================================================================
-  // AI Proxy: Gemini (chiave server-side, evita 403/CORS dal browser)
+  // AI Proxy: Gemini (chiave server-side, evita 403/CORS dal browser).
+  // Implementazione via endpoint openai-compatible: il client invia il
+  // payload nel formato Gemini storico ({ model, contents, config }) e
+  // qui lo convertiamo in messages openai-style. Cosi' funziona sia con
+  // OpenAI/OpenRouter come gateway, sia (in passato) con SDK Google.
   // ====================================================================
+  function geminiContentsToOpenAIMessages(contents: any[], config: any): any[] {
+    const messages: any[] = [];
+    const sys = config?.systemInstruction;
+    if (sys) {
+      const sysText = typeof sys === 'string'
+        ? sys
+        : (sys?.parts || []).map((p: any) => p?.text || '').join('\n');
+      if (sysText) messages.push({ role: 'system', content: sysText });
+    }
+    for (const c of (Array.isArray(contents) ? contents : [])) {
+      const parts: any[] = Array.isArray(c?.parts) ? c.parts : [];
+      const userContent: any[] = parts.map((p: any) => {
+        if (p?.text != null) return { type: 'text', text: p.text };
+        if (p?.inlineData) {
+          const mt = p.inlineData.mimeType || 'image/jpeg';
+          return {
+            type: 'image_url',
+            image_url: { url: `data:${mt};base64,${p.inlineData.data}` },
+          };
+        }
+        return null;
+      }).filter(Boolean);
+      messages.push({
+        role: c?.role === 'model' ? 'assistant' : 'user',
+        content: userContent,
+      });
+    }
+    return messages;
+  }
+
   app.post('/api/gemini/generate', aiLimiter, async (req, res) => {
     const { model, contents, config } = req.body;
-    const API_KEY = process.env.GEMINI_API_KEY;
+    const API_KEY = aiKey('gemini');
     if (!API_KEY) {
       return res.status(500).json({ error: tError(getLang(req), 'missingGeminiKey') });
     }
@@ -846,41 +943,63 @@ async function startServer() {
       const nTexts = (contents?.[0]?.parts || []).filter((p: any) => p.text).length;
       aiLog('Gemini REQ', `model=${model} | parts: ${nTexts} text + ${nImages} images | promptHead: "${promptHead}..."`);
     }
-    const genai = new GoogleGenAI({ apiKey: API_KEY });
-    // Retry su 429 con backoff: Gemini comunica il retryDelay nel campo
-    // RetryInfo del payload errore. Lo onoriamo (clampato a 30s) e
-    // ritentiamo fino a 3 volte totali. Se finiamo gli attempt, riportiamo
-    // 429 al client cosi' che il frontend possa eventualmente fare il
-    // proprio fallback (es. OpenAI).
+
+    const messages = geminiContentsToOpenAIMessages(contents, config);
+    const body: any = {
+      model: aiModelName('gemini', model || 'gemini-2.0-flash'),
+      messages,
+      temperature: typeof config?.temperature === 'number' ? config.temperature : 0,
+    };
+    if (typeof config?.maxOutputTokens === 'number') body.max_tokens = config.maxOutputTokens;
+    if (config?.responseMimeType === 'application/json' || config?.responseSchema) {
+      // responseSchema strutturato di Gemini non e' 1:1 con json_schema OpenAI;
+      // forziamo solo json_object (il prompt server-side e' gia' specifico
+      // abbastanza) e il client fa repairJson() come fallback.
+      body.response_format = { type: 'json_object' };
+    }
+
+    // Retry su 429 con backoff. Su gateway (OpenRouter) il 429 e' lato
+    // gateway ed e' raro; su provider diretto rispecchia il comportamento
+    // pre-gateway.
     const MAX_ATTEMPTS = 3;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const response = await genai.models.generateContent({ model, contents, config });
-        aiLog('Gemini RES', response.text || '');
-        return res.json({ text: response.text });
+        const response = await fetch(OPENAI_CHAT_URL, {
+          method: 'POST',
+          headers: aiHeaders('gemini'),
+          body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          const errMsg = data?.error?.message || `HTTP ${response.status}`;
+          const isRateLimit = response.status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(errMsg);
+          const isDailyExhausted = /FreeTier|PerDay|RequestsPerDay/i.test(errMsg);
+          if (isRateLimit && !isDailyExhausted && attempt < MAX_ATTEMPTS) {
+            const waitSec = Math.min(30, 2 ** attempt);
+            console.warn(`[Gemini Proxy] 429 on attempt ${attempt}/${MAX_ATTEMPTS}, sleeping ${waitSec}s`);
+            await new Promise(r => setTimeout(r, waitSec * 1000));
+            continue;
+          }
+          if (isDailyExhausted) {
+            console.warn(`[Gemini Proxy] daily quota exhausted — skipping retries`);
+          } else {
+            console.error(`[Gemini Proxy] Error (${response.status}) after ${attempt} attempt(s):`, errMsg);
+          }
+          return res.status(response.status).json({ error: errMsg, status: response.status });
+        }
+        const text = data?.choices?.[0]?.message?.content || '';
+        aiLog('Gemini RES', text);
+        return res.json({ text });
       } catch (error: any) {
-        const status = error?.status || 500;
         const msg = String(error?.message || '');
-        const isRateLimit = status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(msg);
-        // Distinguiamo per-minute (transitorio, vale la pena attendere) da
-        // daily/free-tier (esaurito per la giornata: il retry e' tempo
-        // sprecato — meglio fallire subito e lasciar fare al fallback
-        // OpenAI lato client).
-        const isDailyExhausted = /FreeTier|PerDay|RequestsPerDay/i.test(msg);
-        if (isRateLimit && !isDailyExhausted && attempt < MAX_ATTEMPTS) {
-          const retryMatch = /retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(msg);
-          const suggested = retryMatch ? parseFloat(retryMatch[1]) : (2 ** attempt);
-          const waitSec = Math.min(30, Math.max(1, suggested));
-          console.warn(`[Gemini Proxy] 429 on attempt ${attempt}/${MAX_ATTEMPTS}, sleeping ${waitSec.toFixed(1)}s before retry`);
+        if (attempt < MAX_ATTEMPTS) {
+          const waitSec = Math.min(30, 2 ** attempt);
+          console.warn(`[Gemini Proxy] network error on attempt ${attempt}/${MAX_ATTEMPTS}, sleeping ${waitSec}s: ${msg}`);
           await new Promise(r => setTimeout(r, waitSec * 1000));
           continue;
         }
-        if (isDailyExhausted) {
-          console.warn(`[Gemini Proxy] daily quota exhausted — skipping retries, returning 429 immediately so client can fallback to OpenAI`);
-        } else {
-          console.error(`[Gemini Proxy] Error (${status}) after ${attempt} attempt(s):`, msg);
-        }
-        return res.status(status).json({ error: msg || 'Gemini generation failed', status });
+        console.error(`[Gemini Proxy] Error after ${attempt} attempts:`, msg);
+        return res.status(500).json({ error: msg || 'Gemini generation failed', status: 500 });
       }
     }
   });
@@ -931,7 +1050,7 @@ async function startServer() {
 
   app.post('/api/openai/extract', aiLimiter, async (req, res) => {
     const { prompt, data, image } = req.body;
-    const API_KEY = process.env.OPENAI_API_KEY;
+    const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     try {
       const lang = getLang(req);
@@ -953,9 +1072,9 @@ async function startServer() {
       }
       const response = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        headers: aiHeaders('openai'),
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: aiModelName('openai', 'gpt-4o'),
           messages,
           response_format: { type: 'json_object' },
           temperature: 0,
@@ -972,7 +1091,7 @@ async function startServer() {
 
   app.post('/api/openai/list-items', aiLimiter, async (req, res) => {
     const { prompt, data, image } = req.body;
-    const API_KEY = process.env.OPENAI_API_KEY;
+    const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     try {
       const lang = getLang(req);
@@ -994,9 +1113,9 @@ async function startServer() {
       }
       const response = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        headers: aiHeaders('openai'),
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: aiModelName('openai', 'gpt-4o-mini'),
           messages,
           response_format: { type: 'json_object' },
           temperature: 0,
@@ -1014,7 +1133,7 @@ async function startServer() {
   // --- OpenAI Native Menu Scan (fallback quando Gemini esaurisce quota) ---
   app.post('/api/openai/menu-scan', aiLimiter, async (req, res) => {
     const { text, images, allowPizzas } = req.body;
-    const API_KEY = process.env.OPENAI_API_KEY;
+    const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     const lang = getLang(req);
 
@@ -1049,9 +1168,9 @@ async function startServer() {
     try {
       const response = await openaiFetchWithRetry(OPENAI_CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        headers: aiHeaders('openai'),
         body: JSON.stringify({
-          model: hasImages ? 'gpt-4o' : 'gpt-4o-mini',
+          model: aiModelName('openai', hasImages ? 'gpt-4o' : 'gpt-4o-mini'),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -1082,7 +1201,7 @@ async function startServer() {
   // --- OpenAI Native Batch Extract (fallback quando Gemini esaurisce quota) ---
   app.post('/api/openai/menu-extract', aiLimiter, async (req, res) => {
     const { text, images, itemNames, type } = req.body;
-    const API_KEY = process.env.OPENAI_API_KEY;
+    const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     const lang = getLang(req);
 
@@ -1108,9 +1227,9 @@ async function startServer() {
     try {
       const response = await openaiFetchWithRetry(OPENAI_CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        headers: aiHeaders('openai'),
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: aiModelName('openai', 'gpt-4o'),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -1139,7 +1258,7 @@ async function startServer() {
   // --- OpenAI Native Pairings (fallback quando Gemini esaurisce quota) ---
   app.post('/api/openai/pairings', aiLimiter, async (req, res) => {
     const { restaurantInfo, dishes, drinks: drinksList } = req.body;
-    const API_KEY = process.env.OPENAI_API_KEY;
+    const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
     const lang = getLang(req);
     const systemPrompt = pairingsSystemPrompt(lang);
@@ -1149,9 +1268,9 @@ async function startServer() {
     try {
       const response = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        headers: aiHeaders('openai'),
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: aiModelName('openai', 'gpt-4o'),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -1183,16 +1302,15 @@ async function startServer() {
   //    chiamare con "tutta la lista" (carte da 300-400+ voci) senza
   //    doversi occupare del fan-out.
   // ====================================================================
-  const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+  // Su OpenRouter il nome modello Sonnet 4.5 e' 'anthropic/claude-sonnet-4.5'
+  // (testato 25 mag 2026). Su API native Anthropic e' 'claude-sonnet-4-6'.
+  // Sonnet 4.6 su OpenRouter non e' stabile al momento del refactor, ripieghiamo
+  // su 4.5 (output window resta a 64k token).
+  const ANTHROPIC_MODEL = USE_OPENROUTER ? 'claude-sonnet-4.5' : 'claude-sonnet-4-6';
   const ANTHROPIC_HARD_MAX_TOKENS = 64000;
   const ANTHROPIC_MIN_MAX_TOKENS = 4000;
   const ANTHROPIC_BATCH_SIZE = 60;        // voci per batch server-side
   const ANTHROPIC_BATCH_CONCURRENCY = 5;  // batch paralleli (Tier 1 = 50 RPM, max 5 ondate)
-  // baseURL opzionale: undefined → endpoint diretto Anthropic. Settando
-  // ANTHROPIC_BASE_URL in .env (es. a https://openrouter.ai/api/v1) si
-  // ridireziona TUTTO il traffico Anthropic verso un gateway aggregator
-  // senza altre modifiche al codice. Anthropic SDK supporta baseURL.
-  const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || undefined;
 
   /**
    * Stima i max_tokens necessari per una call Anthropic, clampati al
@@ -1206,9 +1324,28 @@ async function startServer() {
   }
 
   /**
-   * Una call ad Anthropic con parsing JSON tollerante a wrapping
-   * (la API non supporta prefill assistant, l'output puo' essere
-   * preceduto/seguito da prosa). Estrae il primo blocco { ... }.
+   * Converte un blocco userContent Anthropic-style nel formato openai-style.
+   *  - { type: 'text', text }                                    → identico
+   *  - { type: 'image', source: { type: 'base64', media_type, data } }
+   *      → { type: 'image_url', image_url: { url: 'data:<media_type>;base64,<data>' } }
+   */
+  function anthropicBlocksToOpenAI(content: any[]): any[] {
+    return content.map((b) => {
+      if (b?.type === 'image' && b.source?.type === 'base64') {
+        const mt = b.source.media_type || 'image/jpeg';
+        return {
+          type: 'image_url',
+          image_url: { url: `data:${mt};base64,${b.source.data}` },
+        };
+      }
+      return b;
+    });
+  }
+
+  /**
+   * Una call al modello Anthropic via endpoint openai-compatible (OpenAI
+   * diretto o OpenRouter come gateway). Parsing JSON tollerante a wrapping:
+   * estrae il primo blocco { ... } dal testo della risposta.
    */
   async function callAnthropic(opts: {
     apiKey: string;
@@ -1216,17 +1353,27 @@ async function startServer() {
     userContent: any[];
     maxTokens: number;
   }): Promise<any> {
-    const anthropic = new Anthropic({ apiKey: opts.apiKey, baseURL: ANTHROPIC_BASE_URL });
-    const response = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: opts.maxTokens,
-      system: opts.systemPrompt,
-      messages: [{ role: 'user', content: opts.userContent }],
+    const messages = [
+      { role: 'system' as const, content: opts.systemPrompt },
+      { role: 'user' as const, content: anthropicBlocksToOpenAI(opts.userContent) },
+    ];
+    const response = await fetch(OPENAI_CHAT_URL, {
+      method: 'POST',
+      headers: aiHeaders('anthropic'),
+      body: JSON.stringify({
+        model: aiModelName('anthropic', ANTHROPIC_MODEL),
+        messages,
+        max_tokens: opts.maxTokens,
+        temperature: 0,
+      }),
     });
-    const rawText = response.content
-      .filter((b: any) => b.type === 'text')
-      .map((b: any) => b.text)
-      .join('');
+    const result = await response.json();
+    if (!response.ok) {
+      const err: any = new Error(result?.error?.message || 'Anthropic call failed');
+      err.status = response.status;
+      throw err;
+    }
+    const rawText: string = result?.choices?.[0]?.message?.content || '';
     const firstBrace = rawText.indexOf('{');
     const lastBrace = rawText.lastIndexOf('}');
     const jsonStr = firstBrace >= 0 && lastBrace > firstBrace
@@ -1237,8 +1384,8 @@ async function startServer() {
 
   app.post('/api/anthropic/menu-scan', aiLimiter, async (req, res) => {
     const { text, images, allowPizzas } = req.body;
-    const API_KEY = process.env.ANTHROPIC_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
+    const API_KEY = aiKey('anthropic');
+    if (!API_KEY) return res.status(500).json({ error: 'Chiave AI non configurata (ANTHROPIC_API_KEY o OPENROUTER_API_KEY)' });
     const lang = getLang(req);
     const imageList: string[] = Array.isArray(images) ? images : req.body.image ? [req.body.image] : [];
     const systemPrompt = menuScanSystemPrompt(lang, !!allowPizzas)
@@ -1274,8 +1421,8 @@ async function startServer() {
 
   app.post('/api/anthropic/menu-extract', aiLimiter, async (req, res) => {
     const { text, images, itemNames, type } = req.body;
-    const API_KEY = process.env.ANTHROPIC_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
+    const API_KEY = aiKey('anthropic');
+    if (!API_KEY) return res.status(500).json({ error: 'Chiave AI non configurata (ANTHROPIC_API_KEY o OPENROUTER_API_KEY)' });
     const lang = getLang(req);
     const imageList: string[] = Array.isArray(images) ? images : req.body.image ? [req.body.image] : [];
     const isDrinks = type === 'drinks';

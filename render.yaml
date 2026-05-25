@@ -35,6 +35,17 @@ services:
         sync: false
       - key: BCRYPT_ROUNDS
         value: "12"
+      # AI gateway aziendale BIBI Srl. Se settata, copre tutti i provider
+      # (Anthropic, OpenAI, Gemini) via OpenRouter. Modalita' consigliata
+      # in produzione: una sola fattura, una sola dashboard.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_BASE_URL
+        sync: false
+      # Chiavi provider diretti — usate SOLO se OPENROUTER_API_KEY non e'
+      # settata (fallback di emergenza / dev locale con account personali).
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY
