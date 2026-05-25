@@ -308,6 +308,24 @@ export const aiRequests = pgTable('ai_requests', {
 }));
 
 // ===========================================================================
+// AI EXTRACTIONS CACHE (per file hash, evita rifare estrazione AI su upload duplicati)
+// ===========================================================================
+export const aiExtractionsCache = pgTable('ai_extractions_cache', {
+  fileHash: char('file_hash', { length: 64 }).notNull(),  // SHA-256 hex
+  uploadType: text('upload_type').notNull(),              // 'menu' | 'drinks'
+  result: jsonb('result').notNull(),                      // { dishes, drinks }
+  model: text('model'),
+  hitCount: integer('hit_count').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastHitAt: timestamp('last_hit_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.fileHash, t.uploadType] }),
+  lastHitIdx: index('idx_ai_cache_last_hit').on(t.lastHitAt),
+  typeChk: check('chk_ai_cache_upload_type',
+    sql`${t.uploadType} IN ('menu', 'drinks')`),
+}));
+
+// ===========================================================================
 // TIPI HELPER (per uso lato applicazione)
 // ===========================================================================
 export type Restaurant   = typeof restaurants.$inferSelect;

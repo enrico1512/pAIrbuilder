@@ -522,6 +522,79 @@ async function startServer() {
   });
 
   // ====================================================================
+  // AI EXTRACTIONS CACHE — evita di rifare le 2 chiamate AI (listItemNames +
+  // extractMenuData) quando lo stesso file binario viene ricaricato.
+  // Key: SHA-256(file) + upload_type ('menu' | 'drinks'). Globale (non
+  // scoped al ristorante) — il caching cross-utente e' voluto: se due
+  // ristoranti caricano lo stesso PDF Garzadori, paghiamo l'AI una volta.
+  // ====================================================================
+
+  // GET /api/ai-cache/:hash?type=menu|drinks — lookup cache.
+  // Risponde 200 con { hit: true, result, model } su hit (e incrementa
+  // hit_count + last_hit_at), 200 con { hit: false } su miss.
+  app.get('/api/ai-cache/:hash', async (req, res) => {
+    try {
+      const hash = String(req.params.hash || '').toLowerCase();
+      const uploadType = String(req.query.type || '');
+      if (!/^[a-f0-9]{64}$/.test(hash)) {
+        return res.status(400).json({ error: 'invalid hash format (expect SHA-256 hex)' });
+      }
+      if (uploadType !== 'menu' && uploadType !== 'drinks') {
+        return res.status(400).json({ error: 'type must be menu or drinks' });
+      }
+      const rows = await pool.query(
+        `UPDATE ai_extractions_cache
+           SET hit_count = hit_count + 1, last_hit_at = NOW()
+         WHERE file_hash = $1 AND upload_type = $2
+         RETURNING result, model, hit_count`,
+        [hash, uploadType]
+      );
+      if (rows.rowCount === 0) {
+        aiLog('cache MISS', { hash, uploadType });
+        return res.json({ hit: false });
+      }
+      aiLog('cache HIT', { hash, uploadType, hits: rows.rows[0].hit_count });
+      res.json({ hit: true, result: rows.rows[0].result, model: rows.rows[0].model });
+    } catch (err: any) {
+      console.error('AI cache GET error:', err);
+      res.status(500).json({ error: err?.message || 'cache lookup failed' });
+    }
+  });
+
+  // POST /api/ai-cache — salva risultato estrazione.
+  // Body: { hash, uploadType, result, model? }. Upsert: se la riga esiste
+  // gia' (race su upload concorrenti) non sovrascrive. result deve essere
+  // { dishes: [...], drinks: [...] } (l'output di extractMenuData).
+  app.post('/api/ai-cache', async (req, res) => {
+    try {
+      const hash = String(req.body?.hash || '').toLowerCase();
+      const uploadType = String(req.body?.uploadType || '');
+      const result = req.body?.result;
+      const model = typeof req.body?.model === 'string' ? req.body.model : null;
+      if (!/^[a-f0-9]{64}$/.test(hash)) {
+        return res.status(400).json({ error: 'invalid hash format' });
+      }
+      if (uploadType !== 'menu' && uploadType !== 'drinks') {
+        return res.status(400).json({ error: 'type must be menu or drinks' });
+      }
+      if (!result || typeof result !== 'object' || !('dishes' in result) || !('drinks' in result)) {
+        return res.status(400).json({ error: 'result must be { dishes, drinks }' });
+      }
+      await pool.query(
+        `INSERT INTO ai_extractions_cache (file_hash, upload_type, result, model)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (file_hash, upload_type) DO NOTHING`,
+        [hash, uploadType, result, model]
+      );
+      aiLog('cache SAVE', { hash, uploadType, model });
+      res.json({ saved: true });
+    } catch (err: any) {
+      console.error('AI cache POST error:', err);
+      res.status(500).json({ error: err?.message || 'cache save failed' });
+    }
+  });
+
+  // ====================================================================
   // ADMIN — endpoint cross-ristorante per il platform owner
   // ====================================================================
   app.get('/api/admin/restaurants', requireAdmin, async (req, res) => {

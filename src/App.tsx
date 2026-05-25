@@ -18,6 +18,7 @@ const AUTH_DISMISS_KEY = "pairbuilder.authDismissed";
 import { generatePairings, extractMenuData, listItemNames, isWineCategory, type Pairing, type Dish, type Drink } from "./lib/gemini";
 import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
+import { sha256File, lookupCache, saveCache } from "./lib/aiCache";
 
 type Step = "welcome" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
 
@@ -247,12 +248,25 @@ export default function App() {
         // Process Food Menus Page by Page
         for (const [idx, f] of menus.entries()) {
           if (controller.signal.aborted) throw new Error("TIMEOUT");
-          
+
           setProcessingIndex(idx + 1);
           setExtractionMode("counting");
           setCurrentScanningCounts({ dishes: 0, drinks: 0 });
           setCurrentExtractionItem(t('app.extracting.progress.menuStructure'));
-          
+
+          // Cache check: stesso file binario gia' estratto in precedenza?
+          // Se hit, skippiamo parsing + listItemNames + extractMenuData.
+          const fileHashMenu = await sha256File(f);
+          const cachedMenu = await lookupCache(fileHashMenu, 'menu');
+          if (cachedMenu.hit && cachedMenu.result) {
+            console.log(`[cache HIT] menu "${f.name}" (${fileHashMenu.slice(0, 12)}...)`);
+            setFoodResults(prev => [...prev, cachedMenu.result as any]);
+            allExtractedDishes.push(...(cachedMenu.result.dishes || []));
+            setCurrentScanningCounts({ dishes: 0, drinks: 0 });
+            setCurrentExtractionItem(null);
+            continue;
+          }
+
           let textContent: string | undefined = undefined;
           let imageBase64: string | undefined = undefined;
           let images: string[] | undefined = undefined;
@@ -304,6 +318,10 @@ export default function App() {
           allExtractedDishes.push(...result.dishes);
           setCurrentScanningCounts({ dishes: 0, drinks: 0 });
           setCurrentExtractionItem(null);
+
+          // Cache save fire-and-forget: prossimo upload dello stesso file
+          // sara' istantaneo (no AI).
+          saveCache(fileHashMenu, 'menu', result as any);
         }
       }
 
@@ -315,7 +333,20 @@ export default function App() {
         setExtractionMode("counting");
         setCurrentScanningCounts({ dishes: 0, drinks: 0 });
         setCurrentExtractionItem(t('app.extracting.progress.drinkList'));
-        
+
+        // Cache check
+        const fileHashDrinks = await sha256File(f);
+        const cachedDrinks = await lookupCache(fileHashDrinks, 'drinks');
+        if (cachedDrinks.hit && cachedDrinks.result) {
+          console.log(`[cache HIT] drinks "${f.name}" (${fileHashDrinks.slice(0, 12)}...)`);
+          setDrinkResults(prev => [...prev, cachedDrinks.result as any]);
+          setExtractedDrinksMemory(prev => [...prev, ...(cachedDrinks.result.drinks || [])]);
+          setProcessedDrinkFileCount(idx + 1);
+          setCurrentScanningCounts({ dishes: 0, drinks: 0 });
+          setCurrentExtractionItem(null);
+          continue;
+        }
+
         let textContent: string | undefined = undefined;
         let imageBase64: string | undefined = undefined;
         let images: string[] | undefined = undefined;
@@ -368,6 +399,9 @@ export default function App() {
         setProcessedDrinkFileCount(idx + 1);
         setCurrentScanningCounts({ dishes: 0, drinks: 0 });
         setCurrentExtractionItem(null);
+
+        // Cache save fire-and-forget
+        saveCache(fileHashDrinks, 'drinks', result as any);
       }
 
       // Commit food results to memory as well

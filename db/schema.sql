@@ -328,6 +328,21 @@ CREATE TABLE ai_requests (
 CREATE INDEX idx_ai_requests_restaurant ON ai_requests(restaurant_id);
 CREATE INDEX idx_ai_requests_created ON ai_requests(created_at DESC);
 
+-- ===========================================================================
+-- 12. CACHE ESTRAZIONI AI (per file hash, evita di pagare due volte la stessa estrazione)
+-- ===========================================================================
+CREATE TABLE ai_extractions_cache (
+  file_hash       CHAR(64) NOT NULL,             -- SHA-256 hex del file binario
+  upload_type     TEXT NOT NULL CHECK (upload_type IN ('menu', 'drinks')),
+  result          JSONB NOT NULL,                -- { dishes: [...], drinks: [...] }
+  model           TEXT,
+  hit_count       INTEGER NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_hit_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (file_hash, upload_type)
+);
+CREATE INDEX idx_ai_cache_last_hit ON ai_extractions_cache(last_hit_at);
+
 COMMIT;
 
 -- ============================================================================
