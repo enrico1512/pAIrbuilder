@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Check, BrainCircuit, Edit2, BarChart3, TrendingUp, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { type Dish, type Drink, analyzeDrinksWithMenu, isWineCategory } from "../lib/gemini";
+import { type Dish, type Drink, analyzeDrinksWithMenu, isWineCategory, isPizzaCategory } from "../lib/gemini";
 
 interface ReviewProps {
   foodPages: { dishes: Dish[]; drinks: Drink[] }[];
@@ -57,8 +57,13 @@ export default function MenuReview({
   const [drinkPage, setDrinkPage] = useState(1);
   const ITEMS_PER_PAGE = 25; // Items visible per page
 
-  // Sorting logic based on user request: "order items follow categories"
-  const sortedDishes = [...allDishes].sort((a, b) => 
+  // Le pizze restano in `allDishes` (verranno salvate nel DB via
+  // /api/dishes/bulk dal parent per la strategia dati BIBI), ma non sono
+  // visibili qui ne' passate a generatePairings: l'abbinamento pizza+vino
+  // non e' considerato di valore dal prodotto. Stessa logica dei drink
+  // non-vino qui sotto.
+  const visibleDishes = allDishes.filter(d => !isPizzaCategory(d.category));
+  const sortedDishes = [...visibleDishes].sort((a, b) =>
     (a.category || "VARIE").localeCompare(b.category || "VARIE", undefined, { sensitivity: 'base' })
   );
 
@@ -78,12 +83,14 @@ export default function MenuReview({
   const totalDrinkPages = Math.max(1, Math.ceil(sortedDrinks.length / ITEMS_PER_PAGE));
 
   useEffect(() => {
-    // Passiamo solo i vini: l'analisi strategica e' pensata per la cantina,
-    // non per birre/cocktail che vivono nel DB ma fuori dal pairing.
+    // Passiamo solo vini + piatti non-pizza: l'analisi strategica e' pensata
+    // per gli abbinamenti che produrremo davvero, non per i drink non-vino
+    // o le pizze che vivono nel DB ma fuori dal pairing.
     const wineSubset = allDrinks.filter(d => isWineCategory(d.category));
+    const dishesSubset = allDishes.filter(d => !isPizzaCategory(d.category));
     if (wineSubset.length > 0 && !analysis && !isAnalyzing) {
       setIsAnalyzing(true);
-      analyzeDrinksWithMenu(allDishes, wineSubset).then(res => {
+      analyzeDrinksWithMenu(dishesSubset, wineSubset).then(res => {
         setAnalysis(res);
         setIsAnalyzing(false);
       });

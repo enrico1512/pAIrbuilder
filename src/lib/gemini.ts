@@ -81,6 +81,24 @@ export function isWineCategory(category: string | undefined | null): boolean {
 }
 
 /**
+ * Le pizze non vengono mai abbinate con i vini nel pairing AI: l'accoppiata
+ * pizza+vino non è considerata interessante per il prodotto. Esattamente
+ * come i drink non-vino vengono filtrati dal pairing (ma salvati nel DB),
+ * le pizze vengono salvate in `food_items` (per la strategia dati BIBI)
+ * ma escluse da MenuReview e dalla generazione abbinamenti.
+ *
+ * Riconosciamo "pizza" / "pizze" / "pizzas" come parole intere (word
+ * boundary), così "PIZZE CLASSICHE" o "Le Nostre Pizze" matchano ma
+ * "pizzaiola" / "pizzaiolo" / "Spaghetti alla pizzaiola" NO — quelli
+ * sono nomi di sughi/preparazioni, non sezioni pizza.
+ */
+const PIZZA_CATEGORY_RE = /\b(pizza|pizze|pizzas)\b/i;
+export function isPizzaCategory(category: string | undefined | null): boolean {
+  if (!category) return false;
+  return PIZZA_CATEGORY_RE.test(category);
+}
+
+/**
  * Storicamente questa funzione rimuoveva tutti gli accenti dall'output AI
  * sostituendoli con apostrofi (es. "città" → "citta'"), perché il PDF
  * generato con il font Helvetica di jspdf non renderizzava i caratteri

@@ -16,7 +16,7 @@ import { useAuth } from "./lib/auth";
 import { toBcp47, currencyFor } from "./i18n/languageMap";
 
 const AUTH_DISMISS_KEY = "pairbuilder.authDismissed";
-import { generatePairings, extractMenuData, listItemNames, isWineCategory, type Pairing, type Dish, type Drink } from "./lib/gemini";
+import { generatePairings, extractMenuData, listItemNames, isWineCategory, isPizzaCategory, type Pairing, type Dish, type Drink } from "./lib/gemini";
 import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
 import { sha256File, lookupCache, saveCache } from "./lib/aiCache";
@@ -507,8 +507,14 @@ export default function App() {
         const restaurantContext = `Ristorante: ${restaurantData?.name}. Cucina: ${restaurantData?.type}.`;
         const context = getUserContext();
         
-        const finalDishes = extractedDishesMemory.length > 0 ? extractedDishesMemory : allDishes;
-        
+        const rawDishes = extractedDishesMemory.length > 0 ? extractedDishesMemory : allDishes;
+        // L'AI di pairing salta le pizze: l'abbinamento pizza+vino non e' un
+        // deliverable di prodotto. Le pizze restano in allDishes (salvate in
+        // /api/dishes/bulk per la strategia dati BIBI) ma non vanno
+        // all'AI di pairing — coerente col filtro UI di MenuReview che le
+        // nasconde, e con la simmetria isPizzaCategory <-> isWineCategory.
+        const finalDishes = rawDishes.filter(d => !isPizzaCategory(d.category));
+
         // Deduplicate drinks
         const drinkMap = new Map();
         [...extractedDrinksMemory, ...allDrinks].forEach(d => {
