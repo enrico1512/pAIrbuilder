@@ -187,7 +187,7 @@ export default function AuthModal({ open, onClose, initialTab = 'login' }: AuthM
             <button
               type="button"
               onClick={handleClose}
-              className="w-full text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-colors py-2"
+              className="btn-primary w-full flex items-center justify-center gap-2"
             >
               {t('auth.popup.guestButton')}
             </button>
