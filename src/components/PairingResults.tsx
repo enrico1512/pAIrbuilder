@@ -141,8 +141,8 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
       doc.line(margin, cursorY, pageWidth - margin, cursorY);
       cursorY += 5;
 
-      // Titolo piatto wrap multi-line, color brand-accent bold
-      doc.setTextColor(...BRAND_ACCENT);
+      // Titolo piatto wrap multi-line, in nero (stesso colore del nome vini)
+      doc.setTextColor(...TEXT_DARK);
       for (const line of dishLines) {
         doc.text(line, margin, cursorY);
         cursorY += 5;
