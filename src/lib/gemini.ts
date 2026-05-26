@@ -64,6 +64,11 @@ export interface Pairing {
     price?: string;
     description: string;
     matchType: "Contrapposizione" | "Concordanza";
+    /** Resolved lato client confrontando il nome del vino contro la lista
+     *  dei vini con `isPriority=true` passata a generatePairings. Nessun
+     *  campo nel JSON dell'AI: l'AI lavora su nomi puliti, isPriority lo
+     *  ricostruisce il client. */
+    isPriority?: boolean;
   }[];
 }
 
@@ -934,6 +939,29 @@ export async function generatePairings(
     product: d.isPriority ? `*** PRIORITY: ${d.product} ***` : d.product
   })));
 
+  // Set di nomi dei vini prioritari (normalizzati) per il match in fase di
+  // post-process. Lo usiamo per ricostruire isPriority sui drink ritornati
+  // dall'AI senza dipendere dal prefisso `*** PRIORITY: ... ***` che a volte
+  // sopravvive nel JSON di output.
+  const normalizeWineName = (s: string) =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/\*\*\*\s*priority\s*:\s*/i, '')
+      .replace(/\s*\*\*\*\s*$/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const priorityNames = new Set(
+    drinks.filter(d => d.isPriority && d.product).map(d => normalizeWineName(d.product))
+  );
+
+  // Strip residuo del prefisso `*** PRIORITY: nome ***` nel name del drink,
+  // nel caso l'AI lo abbia rispecchiato letteralmente nel JSON di output.
+  const stripPriorityPrefix = (name: string): string =>
+    String(name || '')
+      .replace(/^\s*\*+\s*priority\s*:\s*/i, '')
+      .replace(/\s*\*+\s*$/, '')
+      .trim();
+
   const batches = [];
   for (let i = 0; i < dishes.length; i += BATCH_SIZE) {
     batches.push(dishes.slice(i, i + BATCH_SIZE));
@@ -951,7 +979,7 @@ export async function generatePairings(
       
       PAIRING LOGIC:
       1. For each dish, provide 1 pairing by "Concordanza" (Congruence) and 1 by "Contrapposizione" (Contrast).
-      2. PRIORITY DRINKS (MANDATORY): Some drinks in the list are marked with *** PRIORITY: ... ***. You MUST use these drinks as often as possible — they are the restaurant's strategic selections and MUST appear in the majority of pairings. When a priority drink is even remotely suitable, always choose it over a non-priority one.
+      2. PRIORITY DRINKS (MANDATORY): Some drinks in the list are marked with *** PRIORITY: ... ***. You MUST use these drinks as often as possible — they are the restaurant's strategic selections and MUST appear in the majority of pairings. When a priority drink is even remotely suitable, always choose it over a non-priority one. CRITICAL: in your JSON output, the "name" field MUST contain ONLY the wine name itself, WITHOUT the "*** PRIORITY: ... ***" markers. Strip those markers — they are an input hint, not part of the wine's actual name.
       3. CRITICAL: You MUST process EVERY SINGLE DISH in THIS batch (${batch.length} dishes). Do NOT skip any.
       4. You MUST use ONLY drinks from the provided DRINKS LIST. Never invent drinks not in the list. If no suitable drink exists, use the closest available one.
       5. Each description MUST be exactly 3 lines long.
@@ -968,12 +996,19 @@ export async function generatePairings(
       raw.map((p: any) => ({
         ...p,
         dish: cleanAccents(p.dish),
-        drinks: (p.drinks || []).map((d: any) => ({
-          ...d,
-          name: cleanAccents(d.name),
-          category: cleanAccents(d.category),
-          description: cleanAccents(d.description)
-        }))
+        drinks: (p.drinks || []).map((d: any) => {
+          // Strip eventuale prefisso "*** PRIORITY: ... ***" che l'AI puo'
+          // aver rispecchiato nel nome, poi marca il drink come prioritario
+          // se il nome normalizzato appare nella lista di priorityNames.
+          const cleanName = stripPriorityPrefix(cleanAccents(d.name));
+          return {
+            ...d,
+            name: cleanName,
+            category: cleanAccents(d.category),
+            description: cleanAccents(d.description),
+            isPriority: priorityNames.has(normalizeWineName(cleanName)),
+          };
+        })
       }));
 
     try {

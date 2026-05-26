@@ -394,6 +394,7 @@
       "deselectAll": "Deseleziona",
       "dishFallback": "Piatto {{n}}",
       "subtitle": "Abbinamenti consigliati da Dioniso",
+      "priorityNote": "I vini contrassegnati come priorità hanno il bordo colorato.",
       "concordanceHeading": "Concordanza",
       "contrastHeading": "Contrasto",
       "proceedButton": "Procedi al Recap",

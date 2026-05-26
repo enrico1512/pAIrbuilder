@@ -394,6 +394,7 @@
       "deselectAll": "Deselect",
       "dishFallback": "Dish {{n}}",
       "subtitle": "Pairings recommended by Dioniso",
+      "priorityNote": "Wines marked as priority are highlighted with a coloured border.",
       "concordanceHeading": "Concordance",
       "contrastHeading": "Contrast",
       "proceedButton": "Proceed to Recap",

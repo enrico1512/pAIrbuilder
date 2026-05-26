@@ -210,10 +210,12 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
             <section className="flex-1 p-6 md:p-10 flex flex-col overflow-y-auto bg-brand-bg-dark">
               <div className="mb-8">
                 <h2 className="text-4xl md:text-5xl font-normal text-white uppercase mb-2 leading-none font-display tracking-tight text-balance">{activePairing.dish}</h2>
-                <div className="flex items-center gap-2 text-brand-accent italic text-lg opacity-80 mt-4">
-                  <FlashIcon size={20} className="text-brand-accent" />
-                  <span>{t('pairing.dashboard.subtitle')}</span>
+                <div className="text-brand-accent italic text-lg opacity-80 mt-4">
+                  {t('pairing.dashboard.subtitle')}
                 </div>
+                <p className="text-xs text-white/50 mt-2">
+                  {t('pairing.dashboard.priorityNote')}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 gap-8 pb-12">
@@ -228,7 +230,11 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                       key={`conc-${j}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white/5 border border-white/10 p-6 rounded-2xl flex flex-col gap-4"
+                      className={`bg-white/5 p-6 rounded-2xl flex flex-col gap-4 border ${
+                        drink.isPriority
+                          ? 'border-pink-400/70 shadow-[0_0_0_1px_rgba(244,114,182,0.4)]'
+                          : 'border-white/10'
+                      }`}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
@@ -258,7 +264,11 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
                       key={`cont-${j}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white/5 border border-white/10 p-6 rounded-2xl flex flex-col gap-4"
+                      className={`bg-white/5 p-6 rounded-2xl flex flex-col gap-4 border ${
+                        drink.isPriority
+                          ? 'border-pink-400/70 shadow-[0_0_0_1px_rgba(244,114,182,0.4)]'
+                          : 'border-white/10'
+                      }`}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
