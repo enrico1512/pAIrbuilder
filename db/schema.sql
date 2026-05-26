@@ -343,6 +343,34 @@ CREATE TABLE ai_extractions_cache (
 );
 CREATE INDEX idx_ai_cache_last_hit ON ai_extractions_cache(last_hit_at);
 
+-- ===========================================================================
+-- 13. SESSIONI DI UPLOAD (modello pay-per-use: 1ª gratis, dalla 2ª 10€)
+-- ===========================================================================
+CREATE TABLE upload_sessions (
+  id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id               UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  status                      TEXT NOT NULL DEFAULT 'initiated'
+                                CHECK (status IN ('initiated', 'completed', 'refunded', 'cancelled')),
+  is_free                     BOOLEAN NOT NULL DEFAULT FALSE,
+  amount_cents                INTEGER NOT NULL DEFAULT 1000,
+  currency                    CHAR(3) NOT NULL DEFAULT 'EUR',
+  stripe_checkout_session_id  TEXT,
+  stripe_payment_intent_id    TEXT,
+  metadata                    JSONB,
+  started_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at                TIMESTAMPTZ,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_upload_sessions_restaurant ON upload_sessions(restaurant_id);
+CREATE INDEX idx_upload_sessions_status ON upload_sessions(restaurant_id, status);
+CREATE UNIQUE INDEX uq_upload_sessions_stripe_checkout
+  ON upload_sessions(stripe_checkout_session_id)
+  WHERE stripe_checkout_session_id IS NOT NULL;
+CREATE TRIGGER trg_upload_sessions_updated_at
+  BEFORE UPDATE ON upload_sessions
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 COMMIT;
 
 -- ============================================================================

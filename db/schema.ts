@@ -326,6 +326,31 @@ export const aiExtractionsCache = pgTable('ai_extractions_cache', {
 }));
 
 // ===========================================================================
+// UPLOAD SESSIONS (pay-per-use: 1ª gratis, dalla 2ª 10€ via Stripe Checkout)
+// ===========================================================================
+export const uploadSessions = pgTable('upload_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  restaurantId: uuid('restaurant_id').notNull()
+    .references(() => restaurants.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('initiated'),  // 'initiated' | 'completed' | 'refunded' | 'cancelled'
+  isFree: boolean('is_free').notNull().default(false),
+  amountCents: integer('amount_cents').notNull().default(1000),
+  currency: char('currency', { length: 3 }).notNull().default('EUR'),
+  stripeCheckoutSessionId: text('stripe_checkout_session_id'),
+  stripePaymentIntentId: text('stripe_payment_intent_id'),
+  metadata: jsonb('metadata'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  restIdx: index('idx_upload_sessions_restaurant').on(t.restaurantId),
+  statusIdx: index('idx_upload_sessions_status').on(t.restaurantId, t.status),
+  statusChk: check('chk_upload_sessions_status',
+    sql`${t.status} IN ('initiated', 'completed', 'refunded', 'cancelled')`),
+}));
+
+// ===========================================================================
 // TIPI HELPER (per uso lato applicazione)
 // ===========================================================================
 export type Restaurant   = typeof restaurants.$inferSelect;
@@ -338,3 +363,5 @@ export type Drink        = typeof drinks.$inferSelect;
 export type NewDrink     = typeof drinks.$inferInsert;
 export type Pairing      = typeof pairings.$inferSelect;
 export type NewPairing   = typeof pairings.$inferInsert;
+export type UploadSession    = typeof uploadSessions.$inferSelect;
+export type NewUploadSession = typeof uploadSessions.$inferInsert;

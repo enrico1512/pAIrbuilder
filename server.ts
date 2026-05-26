@@ -30,6 +30,7 @@ import {
   drinks,
   contacts,
   pairings,
+  uploadSessions,
 } from './db/schema';
 import {
   getLang,
@@ -288,17 +289,42 @@ async function startServer() {
           .status(400)
           .json({ error: tError(getLang(req), 'missingFields', { fields: 'restaurantName, slug, email, password' }) });
       }
-      // Default preferred_language to whatever lang the user is currently
-      // using in the UI (X-App-Language header), so the very first session
-      // after sign-up keeps their language without an extra round-trip.
       const lang = preferredLanguage === 'en' || preferredLanguage === 'it'
         ? preferredLanguage
         : getLang(req);
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-      const [restaurant] = await db
-        .insert(restaurants)
-        .values({ slug, name: restaurantName, defaultLanguage: lang })
-        .returning();
+
+      // ADOZIONE GUEST: se l'utente sta registrandosi dopo aver gia' usato
+      // l'app come ospite, riusa il suo restaurant guest invece di crearne
+      // uno nuovo. Cosi' dishes/drinks/pairings/upload_sessions gia' salvati
+      // sotto il guest restaurant restano collegati al profilo registrato
+      // (incluso il consumo del 1° upload gratuito — coerente col modello
+      // pay-per-use: il free vale "per restaurant", non "per utente").
+      const guestRid = req.session.guestRestaurantId || null;
+      let restaurant;
+      if (guestRid) {
+        const [existing] = await db.select().from(restaurants).where(eq(restaurants.id, guestRid)).limit(1);
+        if (existing && existing.isGuest) {
+          [restaurant] = await db.update(restaurants)
+            .set({
+              slug,
+              name: restaurantName,
+              defaultLanguage: lang,
+              isGuest: false,
+              guestEmail: null,
+              guestPhone: null,
+            })
+            .where(eq(restaurants.id, guestRid))
+            .returning();
+        }
+      }
+      if (!restaurant) {
+        [restaurant] = await db
+          .insert(restaurants)
+          .values({ slug, name: restaurantName, defaultLanguage: lang })
+          .returning();
+      }
+
       const [user] = await db
         .insert(users)
         .values({
@@ -311,9 +337,14 @@ async function startServer() {
         .returning();
       req.session.userId = user.id;
       req.session.restaurantId = restaurant.id;
+      // Sostituiamo l'id guest in sessione con quello del restaurant promosso
+      // (stesso valore in caso di adozione), e azzeriamo la chiave guest per
+      // chiarezza: da ora in poi sessionRestaurantId() torna req.session.restaurantId.
+      req.session.guestRestaurantId = undefined;
       res.json({
         user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
         restaurant: { id: restaurant.id, slug: restaurant.slug, name: restaurant.name },
+        adoptedGuest: !!guestRid && restaurant.id === guestRid,
       });
     } catch (err: any) {
       console.error('Register error:', err);
@@ -578,6 +609,81 @@ async function startServer() {
     } catch (err: any) {
       console.error('Pairings bulk error:', err);
       res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
+    }
+  });
+
+  // ====================================================================
+  // UPLOAD SESSIONS — pay-per-use (1ª gratis, dalla 2ª 10€ via Stripe).
+  // Vedi memoria pairbuilder_freemium_model.md.
+  // ====================================================================
+  // Una "sessione di upload" = un ciclo completo onboarding + menu + drink
+  // + generazione pairing. La prima per ogni restaurant_id e' gratis; le
+  // successive richiedono un pagamento Stripe Checkout (Fase 3, separata).
+  //
+  // /quota e' chiamato in apertura per decidere se mostrare paywall.
+  // /start e' chiamato quando il guest conferma l'onboarding: crea la riga
+  // upload_sessions. Se e' la prima del restaurant, e' marcata is_free=true
+  // e status='completed' immediatamente. Altrimenti resta 'initiated' in
+  // attesa che il flusso Stripe la chiuda (via webhook, in Fase 3).
+  // ====================================================================
+
+  // Contatore upload completati per il restaurant in sessione (loggato o
+  // guest). Risponde sempre 200; can_start_free=true se nessun upload
+  // completato finora (incluso il caso "nessuna sessione" — visitatore nuovo).
+  app.get('/api/uploads/quota', async (req, res) => {
+    try {
+      const rid = sessionRestaurantId(req);
+      if (!rid) {
+        return res.json({ can_start_free: true, completed_count: 0, has_session: false });
+      }
+      const rows = await pool.query(
+        `SELECT COUNT(*)::int AS n
+           FROM upload_sessions
+          WHERE restaurant_id = $1 AND status = 'completed'`,
+        [rid]
+      );
+      const n = rows.rows[0]?.n ?? 0;
+      res.json({ can_start_free: n === 0, completed_count: n, has_session: true });
+    } catch (err: any) {
+      console.error('Uploads quota error:', err);
+      res.status(500).json({ error: err?.message || 'quota lookup failed' });
+    }
+  });
+
+  // Crea una upload_session per il restaurant corrente. Se e' la prima del
+  // restaurant (count completed = 0), la riga e' is_free=true e status passa
+  // subito a 'completed'. Altrimenti is_free=false, amount=1000 cents, status
+  // 'initiated': in attesa di Stripe Checkout (Fase 3 — endpoint
+  // /api/checkout/create-session userà l'id ritornato qui).
+  app.post('/api/uploads/start', requireSession, async (req, res) => {
+    try {
+      const rid = sessionRestaurantId(req)!;
+      const completed = await pool.query(
+        `SELECT COUNT(*)::int AS n
+           FROM upload_sessions
+          WHERE restaurant_id = $1 AND status = 'completed'`,
+        [rid]
+      );
+      const isFree = (completed.rows[0]?.n ?? 0) === 0;
+      const now = new Date();
+      const [row] = await db.insert(uploadSessions).values({
+        restaurantId: rid,
+        status: isFree ? 'completed' : 'initiated',
+        isFree,
+        amountCents: isFree ? 0 : 1000,
+        currency: 'EUR',
+        completedAt: isFree ? now : null,
+      }).returning();
+      res.json({
+        upload_session_id: row.id,
+        is_free: row.isFree,
+        status: row.status,
+        amount_cents: row.amountCents,
+        requires_payment: !row.isFree,
+      });
+    } catch (err: any) {
+      console.error('Uploads start error:', err);
+      res.status(500).json({ error: err?.message || 'upload start failed' });
     }
   });
 
