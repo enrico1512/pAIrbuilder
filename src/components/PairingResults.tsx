@@ -5,8 +5,37 @@ import { useState, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { Pairing } from "../lib/gemini";
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { ensurePdfFont } from "../lib/pdfFonts";
+
+// SVG path delle icone lucide-react usate nel PDF. Copiati 1:1 dai
+// componenti <Scale> e <Contrast> di lucide-react cosi' restano coerenti
+// con quelle visualizzate nella dashboard pairing.
+const SCALE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="STROKE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>`;
+const CONTRAST_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="STROKE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg>`;
+
+/** Rasterizza un SVG inline in un PNG dataURL di size×size px, colorando
+ *  lo stroke con il color hex passato. Usato per embeddare le icone
+ *  Scale/Contrast nel PDF jspdf via doc.addImage. */
+function svgToPng(svg: string, size: number, color: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const colored = svg.replace(/STROKE/g, color);
+    const blob = new Blob([colored], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('no ctx')); return; }
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
 
 interface PairingResultsProps {
   pairings: Pairing[];
@@ -53,71 +82,140 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
   const handlePrint = async () => {
     const doc = new jsPDF() as any;
     // Carica Liberation Sans con supporto Unicode (sostituisce Helvetica).
-    // Tutti i setFont(...) successivi devono usare il valore restituito.
     const fontName = await ensurePdfFont(doc);
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
+    const margin = 18;
+    const contentWidth = pageWidth - margin * 2;
+
+    // Palette: brand-accent ocra dell'app (#d2a86b), grigio bordi,
+    // grigio testo medio. Sfondo bianco di default.
+    const BRAND_ACCENT: [number, number, number] = [210, 168, 107];
+    const SEP_GREY: [number, number, number] = [220, 220, 220];
+    const TEXT_DARK: [number, number, number] = [40, 40, 40];
+    const TEXT_MID: [number, number, number] = [90, 90, 90];
+
+    // Pre-rasterizza le icone Scale / Contrast in color brand-accent.
+    // Dimensione 96px e' un buon compromesso per non sgranare nel PDF.
+    const accentHex = '#d2a86b';
+    const [scaleIcon, contrastIcon] = await Promise.all([
+      svgToPng(SCALE_SVG, 96, accentHex),
+      svgToPng(CONTRAST_SVG, 96, accentHex),
+    ]);
+
+    // --- Header con titolo centrato in color brand-accent ---
     let cursorY = 30;
-
-    // --- Centered Title ---
-    doc.setFont(fontName, "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(0);
-    doc.text(t('pairing.pdf.title'), pageWidth / 2, cursorY, { align: "center" });
-    cursorY += 8;
-
-    doc.setDrawColor(200, 160, 100);
+    doc.setFont(fontName, 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...BRAND_ACCENT);
+    doc.text(t('pairing.pdf.title').toUpperCase(), pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 6;
+    doc.setDrawColor(...BRAND_ACCENT);
     doc.setLineWidth(0.5);
     doc.line(margin, cursorY, pageWidth - margin, cursorY);
-    cursorY += 10;
+    cursorY += 12;
 
-    // --- Selected Pairings ---
-    selectedPairings.forEach((pairing) => {
-      if (cursorY > pageHeight - 40) {
+    // --- Loop sui piatti selezionati ---
+    for (const pairing of selectedPairings) {
+      // Wrapping titolo piatto: split su contentWidth per evitare il taglio
+      // a destra che si vedeva prima nel vecchio PDF (es. "GEL DI C...").
+      doc.setFont(fontName, 'bold');
+      doc.setFontSize(11);
+      const dishLines: string[] = doc.splitTextToSize(pairing.dish.toUpperCase(), contentWidth);
+
+      // Stima altezza blocco per page break preemptivo
+      const drinksHeightEstimate = pairing.drinks.reduce((acc, drink) => {
+        const descLines = doc.splitTextToSize(drink.description || '', contentWidth - 38);
+        return acc + 5 + descLines.length * 4 + 3;
+      }, 0);
+      const blockHeight = 4 + dishLines.length * 5 + 4 + drinksHeightEstimate + 4;
+
+      if (cursorY + blockHeight > pageHeight - 22) {
         doc.addPage();
-        cursorY = 20;
+        cursorY = 22;
       }
 
-      doc.setFontSize(11);
-      doc.setFont(fontName, "bold");
-      doc.setTextColor(140, 100, 40);
-      doc.text(pairing.dish.toUpperCase(), margin, cursorY);
-      cursorY += 6;
+      // Linea separatrice sottile brand-accent sopra ogni piatto
+      doc.setDrawColor(...BRAND_ACCENT);
+      doc.setLineWidth(0.3);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY);
+      cursorY += 5;
 
-      const body = pairing.drinks.map(d => [
-        d.name,
-        t(`pairing.matchType.${d.matchType}`, { defaultValue: d.matchType }),
-        d.description
-      ]);
+      // Titolo piatto wrap multi-line, color brand-accent bold
+      doc.setTextColor(...BRAND_ACCENT);
+      for (const line of dishLines) {
+        doc.text(line, margin, cursorY);
+        cursorY += 5;
+      }
+      cursorY += 2;
 
-      autoTable(doc, {
-        body,
-        startY: cursorY,
-        margin: { left: margin },
-        theme: "plain",
-        // styles.font deve coincidere con il font registrato sopra,
-        // altrimenti autotable ripiega sul default Helvetica perdendo gli accenti.
-        styles: { font: fontName, fontSize: 8, cellPadding: 2 },
-        columnStyles: {
-          0: { fontStyle: "bold", cellWidth: 40 },
-          1: { cellWidth: 30, fontStyle: "italic", textColor: [150, 150, 150] },
-          2: { cellWidth: pageWidth - margin * 2 - 70 }
+      // Separatore grigio chiaro sotto il titolo
+      doc.setDrawColor(...SEP_GREY);
+      doc.setLineWidth(0.2);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY);
+      cursorY += 5;
+
+      // Una riga per abbinamento: [icona] [label]  [nome vino]
+      //                                            [descrizione AI]
+      for (const drink of pairing.drinks) {
+        const iconDataUrl = drink.matchType === 'Concordanza' ? scaleIcon : contrastIcon;
+        const iconSize = 5; // mm
+        const labelText = t(`pairing.matchType.${drink.matchType}`, { defaultValue: drink.matchType });
+        const contentX = margin + 34;
+        const drinkContentWidth = pageWidth - contentX - margin;
+
+        // Icona allineata col baseline della prima riga di testo
+        doc.addImage(iconDataUrl, 'PNG', margin, cursorY - 4, iconSize, iconSize);
+
+        // Label "Concordanza" / "Contrapposizione" italica color accent
+        doc.setFont(fontName, 'italic');
+        doc.setFontSize(8);
+        doc.setTextColor(...BRAND_ACCENT);
+        doc.text(labelText, margin + iconSize + 2, cursorY);
+
+        // Nome vino bold scuro
+        doc.setFont(fontName, 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(...TEXT_DARK);
+        const nameLines: string[] = doc.splitTextToSize(drink.name || '', drinkContentWidth);
+        for (const line of nameLines) {
+          doc.text(line, contentX, cursorY);
+          cursorY += 4.5;
         }
-      });
+        cursorY += 0.5;
 
-      cursorY = (doc as any).lastAutoTable.finalY + 10;
-    });
+        // Descrizione AI: testo normale grigio medio
+        doc.setFont(fontName, 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...TEXT_MID);
+        const descLines: string[] = doc.splitTextToSize(drink.description || '', drinkContentWidth);
+        for (const line of descLines) {
+          if (cursorY > pageHeight - 22) {
+            doc.addPage();
+            cursorY = 22;
+          }
+          doc.text(line, contentX, cursorY);
+          cursorY += 4;
+        }
+        cursorY += 4;
+      }
+      cursorY += 2;
+    }
 
-    // --- Footer ---
+    // --- Footer su tutte le pagine ---
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.setFont(fontName, "normal");
+      doc.setFont(fontName, 'normal');
       doc.setFontSize(7);
       doc.setTextColor(150);
-      doc.text(t('pairing.pdf.pageFooter', { current: i, total: totalPages }), pageWidth - margin - 15, pageHeight - 10);
       doc.text(t('pairing.pdf.signature'), margin, pageHeight - 10);
+      doc.text(
+        t('pairing.pdf.pageFooter', { current: i, total: totalPages }),
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: 'right' }
+      );
     }
 
     doc.save(t('pairing.pdf.filename'));

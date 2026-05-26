@@ -413,7 +413,7 @@
     "pdf": {
       "title": "Menu abbinamenti consigliati",
       "pageFooter": "Pagina {{current}} di {{total}}",
-      "signature": "Generato con Dioniso Sommelier AI",
+      "signature": "Generato con PAIRBUILDER by Ambrosiavino.com",
       "filename": "Menu_abbinamenti_consigliati.pdf"
     }
   }

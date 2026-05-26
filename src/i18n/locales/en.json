@@ -413,7 +413,7 @@
     "pdf": {
       "title": "Recommended pairing menu",
       "pageFooter": "Page {{current}} of {{total}}",
-      "signature": "Generated with Dioniso Sommelier AI",
+      "signature": "Generated with PAIRBUILDER by Ambrosiavino.com",
       "filename": "Recommended_pairing_menu.pdf"
     }
   }
