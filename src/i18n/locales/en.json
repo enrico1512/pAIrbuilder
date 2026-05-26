@@ -284,6 +284,39 @@
     },
     "errors": {
       "generic": "Something went wrong. Please try again."
+    },
+    "forgot": {
+      "link": "Forgot password?",
+      "title": "Reset your password",
+      "subtitle": "Enter the email of your profile: we'll send you a link to choose a new password.",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "back": "Back to sign in",
+      "success": "If the email is registered, you'll receive a reset link shortly. Check your spam folder too."
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "subtitle": "Enter the new password for your profile.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "submit": "Update password",
+      "submitting": "Updating...",
+      "successTitle": "Password updated",
+      "successBody": "You can now sign in with the new password.",
+      "errorMismatch": "The two passwords don't match.",
+      "errorShort": "Password must be at least 8 characters.",
+      "errorInvalidLink": "Invalid or expired link. Request a new reset link.",
+      "goLogin": "Go to sign in"
+    },
+    "verify": {
+      "checkInbox": "Check your email: we sent you a link to confirm your sign-up.",
+      "successTitle": "Email verified",
+      "successBody": "Your email has been successfully verified.",
+      "errorTitle": "Verification failed",
+      "errorBody": "The link is invalid or has expired.",
+      "goHome": "Back to home",
+      "resend": "Resend verification email",
+      "resent": "Email resent. Check your inbox."
     }
   },
   "paywall": {

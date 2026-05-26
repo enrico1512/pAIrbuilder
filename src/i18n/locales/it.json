@@ -284,6 +284,39 @@
     },
     "errors": {
       "generic": "Si è verificato un errore. Riprova."
+    },
+    "forgot": {
+      "link": "Password dimenticata?",
+      "title": "Recupera la password",
+      "subtitle": "Inserisci l'email del tuo profilo: ti invieremo un link per scegliere una nuova password.",
+      "submit": "Invia link di reset",
+      "submitting": "Invio in corso...",
+      "back": "Torna all'accesso",
+      "success": "Se l'email è registrata, riceverai a breve un link per reimpostare la password. Controlla anche lo spam."
+    },
+    "reset": {
+      "title": "Scegli una nuova password",
+      "subtitle": "Inserisci la nuova password per il tuo profilo.",
+      "newPassword": "Nuova password",
+      "confirmPassword": "Conferma password",
+      "submit": "Aggiorna password",
+      "submitting": "Aggiornamento in corso...",
+      "successTitle": "Password aggiornata",
+      "successBody": "Puoi ora accedere con la nuova password.",
+      "errorMismatch": "Le due password non coincidono.",
+      "errorShort": "La password deve essere di almeno 8 caratteri.",
+      "errorInvalidLink": "Link non valido o scaduto. Richiedi un nuovo link di reset.",
+      "goLogin": "Vai all'accesso"
+    },
+    "verify": {
+      "checkInbox": "Controlla la tua email: ti abbiamo inviato un link per confermare l'iscrizione.",
+      "successTitle": "Email confermata",
+      "successBody": "La tua email è stata verificata correttamente.",
+      "errorTitle": "Verifica non riuscita",
+      "errorBody": "Il link non è valido o è scaduto.",
+      "goHome": "Torna alla home",
+      "resend": "Rinvia email di verifica",
+      "resent": "Email rinviata. Controlla la tua casella."
     }
   },
   "paywall": {

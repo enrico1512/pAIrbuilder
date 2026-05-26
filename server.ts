@@ -22,9 +22,11 @@ import { and, eq } from 'drizzle-orm';
 // openai-style nel proxy /api/gemini/generate.
 import * as XLSX from 'xlsx';
 import { db, pool } from './db/client';
+import { randomBytes, createHash } from 'crypto';
 import {
   restaurants,
   users,
+  authTokens,
   foodCategories,
   foodItems,
   drinks,
@@ -44,6 +46,7 @@ import {
   pairingsSystemPrompt,
   pairingsUserPrefix,
 } from './server/i18n';
+import { sendEmail, buildAppUrl } from './server/email';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -281,18 +284,47 @@ async function startServer() {
   // ====================================================================
   // AUTH
   // ====================================================================
+  // Genera uno slug univoco a partire dal nome ristorante. Due ristoranti
+  // possono chiamarsi uguale (es. due "Trattoria del Borgo"), ma lo slug
+  // deve essere unique per il routing admin: aggiungiamo un suffix random
+  // di 6 caratteri base36. Probabilita' di collisione con 1M ristoranti:
+  // ~0.05%. Retry server-side al 1° conflitto (max 3) per blindare.
+  function slugifyServer(name: string): string {
+    return String(name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 50) || 'ristorante';
+  }
+  function uniqueSlugSuffix(): string {
+    return Math.random().toString(36).slice(2, 8);
+  }
+
   app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
-      const { restaurantName, slug, email, password, fullName, preferredLanguage } = req.body || {};
-      if (!restaurantName || !slug || !email || !password) {
+      const { restaurantName, email, password, fullName, preferredLanguage, captchaToken } = req.body || {};
+      if (!restaurantName || !email || !password) {
         return res
           .status(400)
-          .json({ error: tError(getLang(req), 'missingFields', { fields: 'restaurantName, slug, email, password' }) });
+          .json({ error: tError(getLang(req), 'missingFields', { fields: 'restaurantName, email, password' }) });
+      }
+      const captchaOk = await verifyTurnstile(captchaToken, req.ip);
+      if (!captchaOk) {
+        const lng = getLang(req);
+        return res.status(400).json({ error: lng === 'en' ? 'Captcha verification failed. Please retry.' : 'Verifica anti-bot non riuscita. Riprova.' });
       }
       const lang = preferredLanguage === 'en' || preferredLanguage === 'it'
         ? preferredLanguage
         : getLang(req);
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+      // Lo slug e' SEMPRE generato server-side: nome ristorante normalizzato
+      // + suffix random. Cosi' due ristoranti che si chiamano uguali non
+      // collidono mai sull'utente finale (l'identificazione e' email+password).
+      const slugBase = slugifyServer(restaurantName);
+      const slug = `${slugBase}-${uniqueSlugSuffix()}`;
 
       // ADOZIONE GUEST: se l'utente sta registrandosi dopo aver gia' usato
       // l'app come ospite, riusa il suo restaurant guest invece di crearne
@@ -341,8 +373,12 @@ async function startServer() {
       // (stesso valore in caso di adozione), e azzeriamo la chiave guest per
       // chiarezza: da ora in poi sessionRestaurantId() torna req.session.restaurantId.
       req.session.guestRestaurantId = undefined;
+      // Spedisce l'email di verifica in background (best-effort: se la
+      // chiave email manca o c'e' un errore, l'utente viene loggato lo
+      // stesso e potra' riconfermare via "rinvia email" piu' tardi).
+      void sendVerifyEmail(user.id, user.email, lang as 'it' | 'en');
       res.json({
-        user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
+        user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage, emailVerified: false },
         restaurant: { id: restaurant.id, slug: restaurant.slug, name: restaurant.name },
         adoptedGuest: !!guestRid && restaurant.id === guestRid,
       });
@@ -393,7 +429,7 @@ async function startServer() {
       req.session.restaurantId = user.restaurantId;
       await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
       res.json({
-        user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
+        user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage, emailVerified: !!user.emailVerifiedAt },
         restaurantId: user.restaurantId,
       });
     } catch (err: any) {
@@ -415,9 +451,192 @@ async function startServer() {
       .where(eq(restaurants.id, user.restaurantId))
       .limit(1);
     res.json({
-      user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage },
+      user: { id: user.id, email: user.email, fullName: user.fullName, preferredLanguage: user.preferredLanguage, emailVerified: !!user.emailVerifiedAt },
       restaurant: rest,
     });
+  });
+
+  /** Rinvia l'email di verifica all'utente loggato (utile se l'originale e'
+   *  andata persa). Rate-limited come gli altri auth. */
+  app.post('/api/auth/resend-verification', authLimiter, requireAuth, async (req, res) => {
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, req.session.userId!)).limit(1);
+      if (!user) return res.status(401).json({ error: tError(getLang(req), 'userNotFound') });
+      if (user.emailVerifiedAt) {
+        const lang = getLang(req);
+        return res.json({ ok: true, already: true, message: lang === 'en' ? 'Email already verified.' : 'Email gia\' verificata.' });
+      }
+      await sendVerifyEmail(user.id, user.email, (user.preferredLanguage as 'it'|'en') || 'it');
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error('Resend verification error:', err);
+      res.status(500).json({ error: err?.message || 'resend-verification failed' });
+    }
+  });
+
+  // ====================================================================
+  // VERIFY EMAIL / RESET PASSWORD — token usa-e-getta in `auth_tokens`.
+  // Salviamo SOLO l'hash sha256 del token, mai il valore in chiaro:
+  // se il DB viene letto, l'attaccante non puo' ricavare token validi.
+  // ====================================================================
+
+  function generateAuthToken(): { plain: string; hash: string } {
+    // 32 byte random → 64 char hex. Probabilita' di indovinarne uno:
+    // 1 / (16^64) → impossibile in pratica.
+    const plain = randomBytes(32).toString('hex');
+    const hash = createHash('sha256').update(plain).digest('hex');
+    return { plain, hash };
+  }
+
+  function hashAuthToken(plain: string): string {
+    return createHash('sha256').update(plain).digest('hex');
+  }
+
+  /**
+   * Verifica un token Turnstile (Cloudflare). Se `TURNSTILE_SECRET_KEY`
+   * non e' configurata, ritorna `true` (modalita' dev: il captcha e'
+   * disattivato). In prod va settata insieme a TURNSTILE_SITE_KEY.
+   */
+  async function verifyTurnstile(token: string | undefined | null, remoteIp?: string): Promise<boolean> {
+    const secret = process.env.TURNSTILE_SECRET_KEY;
+    if (!secret) {
+      // dev: nessuna chiave → tutti passano. Logghiamo per chiarezza.
+      console.log('[turnstile DEV] no TURNSTILE_SECRET_KEY, skipping captcha verification');
+      return true;
+    }
+    if (!token) return false;
+    try {
+      const form = new URLSearchParams({ secret, response: token });
+      if (remoteIp) form.append('remoteip', remoteIp);
+      const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: form,
+      });
+      const data = (await r.json().catch(() => ({}))) as { success?: boolean };
+      return !!data.success;
+    } catch (err) {
+      console.error('[turnstile] verify error:', err);
+      return false;
+    }
+  }
+
+  /** Invia email di verifica all'utente appena creato. Best-effort:
+   *  loggato come warning su failure ma non blocca il register. */
+  async function sendVerifyEmail(userId: string, email: string, lang: 'it' | 'en') {
+    try {
+      const { plain, hash } = generateAuthToken();
+      // 7 giorni di validita' per la verifica email (link cliccabile a
+      // partire dalla mail ricevuta).
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await db.insert(authTokens).values({
+        userId,
+        tokenHash: hash,
+        purpose: 'verify',
+        expiresAt,
+      });
+      const link = buildAppUrl(`/verify-email?token=${plain}`);
+      const subject = lang === 'en' ? 'Confirm your email — pAIrbuilder' : 'Conferma la tua email — pAIrbuilder';
+      const html = lang === 'en'
+        ? `<p>Hi,</p><p>Click the link below to confirm your email address:</p><p><a href="${link}">${link}</a></p><p>The link expires in 7 days.</p><p>If you didn't sign up, ignore this email.</p>`
+        : `<p>Ciao,</p><p>Clicca il link qui sotto per confermare il tuo indirizzo email:</p><p><a href="${link}">${link}</a></p><p>Il link scade tra 7 giorni.</p><p>Se non ti sei registrato tu, ignora questa email.</p>`;
+      await sendEmail({ to: email, subject, html });
+    } catch (err) {
+      console.warn('[verify-email] send failed (non-blocking):', err);
+    }
+  }
+
+  /** POST /api/auth/forgot-password — invia email con link di reset.
+   *  Per sicurezza la risposta e' sempre 200 anche se l'email non esiste
+   *  (anti-enumeration). Il vero feedback arriva via email. */
+  app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
+    try {
+      const { email, captchaToken } = req.body || {};
+      if (!email) {
+        return res.status(400).json({ error: tError(getLang(req), 'missingFields', { fields: 'email' }) });
+      }
+      const captchaOk = await verifyTurnstile(captchaToken, req.ip);
+      if (!captchaOk) {
+        const lang = getLang(req);
+        return res.status(400).json({ error: lang === 'en' ? 'Captcha verification failed.' : 'Verifica anti-bot non riuscita.' });
+      }
+      const lang = getLang(req);
+      const [user] = await db.select().from(users).where(eq(users.email, String(email).trim())).limit(1);
+      if (user) {
+        const { plain, hash } = generateAuthToken();
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 ora
+        await db.insert(authTokens).values({
+          userId: user.id,
+          tokenHash: hash,
+          purpose: 'reset',
+          expiresAt,
+        });
+        const link = buildAppUrl(`/reset-password?token=${plain}`);
+        const subject = lang === 'en' ? 'Reset your password — pAIrbuilder' : 'Reimposta la tua password — pAIrbuilder';
+        const html = lang === 'en'
+          ? `<p>Hi,</p><p>You requested a password reset. Click the link below to set a new password:</p><p><a href="${link}">${link}</a></p><p>The link expires in 1 hour. If you didn't request this, ignore this email.</p>`
+          : `<p>Ciao,</p><p>Hai richiesto di reimpostare la password. Clicca il link qui sotto per sceglierne una nuova:</p><p><a href="${link}">${link}</a></p><p>Il link scade tra 1 ora. Se non sei stato tu, ignora questa email.</p>`;
+        void sendEmail({ to: user.email, subject, html });
+      }
+      // Risposta uniforme indipendentemente dall'esistenza dell'utente.
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error('Forgot password error:', err);
+      res.status(500).json({ error: err?.message || 'forgot-password failed' });
+    }
+  });
+
+  /** POST /api/auth/reset-password — verifica token + cambia password. */
+  app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+    try {
+      const { token, newPassword } = req.body || {};
+      if (!token || !newPassword) {
+        return res.status(400).json({ error: tError(getLang(req), 'missingFields', { fields: 'token, newPassword' }) });
+      }
+      if (String(newPassword).length < 8) {
+        const lang = getLang(req);
+        return res.status(400).json({ error: lang === 'en' ? 'Password must be at least 8 characters.' : 'La password deve essere di almeno 8 caratteri.' });
+      }
+      const hash = hashAuthToken(String(token));
+      const [row] = await db.select().from(authTokens)
+        .where(and(eq(authTokens.tokenHash, hash), eq(authTokens.purpose, 'reset')))
+        .limit(1);
+      const lang = getLang(req);
+      if (!row || row.usedAt || row.expiresAt < new Date()) {
+        return res.status(400).json({ error: lang === 'en' ? 'Invalid or expired reset link.' : 'Link di reset non valido o scaduto.' });
+      }
+      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      await db.update(users).set({ passwordHash }).where(eq(users.id, row.userId));
+      await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error('Reset password error:', err);
+      res.status(500).json({ error: err?.message || 'reset-password failed' });
+    }
+  });
+
+  /** POST /api/auth/verify-email — marca email_verified_at su `users` se
+   *  il token e' valido e non scaduto. */
+  app.post('/api/auth/verify-email', authLimiter, async (req, res) => {
+    try {
+      const { token } = req.body || {};
+      if (!token) {
+        return res.status(400).json({ error: tError(getLang(req), 'missingFields', { fields: 'token' }) });
+      }
+      const hash = hashAuthToken(String(token));
+      const [row] = await db.select().from(authTokens)
+        .where(and(eq(authTokens.tokenHash, hash), eq(authTokens.purpose, 'verify')))
+        .limit(1);
+      const lang = getLang(req);
+      if (!row || row.usedAt || row.expiresAt < new Date()) {
+        return res.status(400).json({ error: lang === 'en' ? 'Invalid or expired verification link.' : 'Link di verifica non valido o scaduto.' });
+      }
+      await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, row.userId));
+      await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error('Verify email error:', err);
+      res.status(500).json({ error: err?.message || 'verify-email failed' });
+    }
   });
 
   app.put('/api/auth/preferred-language', requireAuth, async (req, res) => {
@@ -1066,6 +1285,10 @@ async function startServer() {
       anthropicApiKeyPresent: hasAnthropic,
       gateway: USE_OPENROUTER ? 'openrouter' : 'direct',
       appUrl: APP_URL,
+      // Site key Turnstile esposto al client (pubblico per design). Se la
+      // chiave non e' settata, il widget non viene mostrato e il backend
+      // accetta le request senza captcha (modalita' dev).
+      turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || null,
       status,
       message: `Gemini: ${hasGemini ? 'OK' : 'NO'} | OpenAI: ${hasOpenAI ? 'OK' : 'NO'} | Anthropic: ${hasAnthropic ? 'OK' : 'NO'} | Vision OCR: ${hasVision ? 'OK' : 'opzionale'}${gatewayInfo}`,
     });
