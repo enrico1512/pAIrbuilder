@@ -348,6 +348,33 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('Register error:', err);
+      // Postgres unique constraint violation (codice 23505): traduciamo in
+      // un 409 con messaggio comprensibile invece di restituire il dump
+      // tecnico Drizzle che il client mostrerebbe come "errore generico".
+      // I due constraint che possono fallire sono users_email_key e
+      // restaurants_slug_key (oltre a eventuali altri unique non previsti).
+      const pgCode = err?.cause?.code || err?.code;
+      const constraint = err?.cause?.constraint || err?.constraint;
+      if (pgCode === '23505') {
+        const lang = getLang(req);
+        if (String(constraint).includes('email')) {
+          return res.status(409).json({
+            error: lang === 'en'
+              ? 'This email is already registered. Try logging in instead.'
+              : 'Questa email è già registrata. Prova ad accedere invece.',
+          });
+        }
+        if (String(constraint).includes('slug')) {
+          return res.status(409).json({
+            error: lang === 'en'
+              ? 'A restaurant with this name already exists. Try a slightly different name.'
+              : 'Esiste già un ristorante con questo nome. Prova con un nome leggermente diverso.',
+          });
+        }
+        return res.status(409).json({
+          error: lang === 'en' ? 'Duplicate entry.' : 'Dato duplicato già presente.',
+        });
+      }
       res.status(500).json({ error: err?.message || tError(getLang(req), 'registrationFailed') });
     }
   });
