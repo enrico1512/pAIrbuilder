@@ -12,6 +12,10 @@ export type AuthRestaurant = {
   id: string;
   slug: string;
   name: string;
+  cuisineType?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  logoUrl?: string | null;
 } | null;
 
 type AuthContextValue = {
@@ -57,7 +61,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       setUser(data.user);
       setRestaurant(data.restaurant
-        ? { id: data.restaurant.id, slug: data.restaurant.slug, name: data.restaurant.name }
+        ? {
+            id: data.restaurant.id,
+            slug: data.restaurant.slug,
+            name: data.restaurant.name,
+            cuisineType: data.restaurant.cuisineType ?? null,
+            email: data.restaurant.email ?? null,
+            phone: data.restaurant.phone ?? null,
+            logoUrl: data.restaurant.logoUrl ?? null,
+          }
         : null);
       // If the user has a saved preferred language and it differs from the
       // current UI language, apply it. This makes the saved DB preference

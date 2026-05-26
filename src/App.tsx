@@ -48,14 +48,28 @@ export default function App() {
     setAuthModalOpen(false);
   };
 
+  // Helper: popola restaurantData dai dati salvati nel profilo loggato,
+  // così l'utente non deve ricompilare il form "Il tuo locale" ogni volta
+  // (i dati ci sono già nel DB, sia per registrazione fresh che per
+  // adozione guest dopo paywall).
+  const restaurantDataFromAuth = () => ({
+    name: auth.restaurant?.name || '',
+    type: auth.restaurant?.cuisineType || '',
+    email: auth.restaurant?.email || '',
+    phone: auth.restaurant?.phone || '',
+    logo: auth.restaurant?.logoUrl || null,
+  });
+
   // Se l'utente si autentica mentre e' bloccato sul paywall, lo facciamo
-  // proseguire al passo "restaurant". Il nuovo profilo loggato avra' un
-  // restaurant_id proprio con 0 upload completati → quota check ok.
+  // proseguire saltando lo step "restaurant" (l'onboarding ristorante e'
+  // gia' stato fatto come guest e adottato dal register, oppure e' un
+  // login di un profilo esistente). Andiamo direttamente a "upload".
   useEffect(() => {
     if (auth.user && step === "paywall") {
-      setStep("restaurant");
+      setRestaurantData(restaurantDataFromAuth());
+      setStep("upload");
     }
-  }, [auth.user, step]);
+  }, [auth.user, auth.restaurant, step]);
 
   const openAuthModal = (tab: 'login' | 'register') => {
     setAuthModalTab(tab);
@@ -212,7 +226,16 @@ export default function App() {
     } catch (err) {
       console.warn("[uploads/quota] check failed, proceeding without paywall:", err);
     }
-    setStep("restaurant");
+    // Utente gia' loggato: i dati del ristorante sono nel DB, salta lo
+    // step "restaurant" e va diretto a "upload" (popolando restaurantData
+    // dal profilo). Gli ospiti, invece, vanno su "restaurant" per
+    // compilare il form di onboarding la prima volta.
+    if (auth.user && auth.restaurant) {
+      setRestaurantData(restaurantDataFromAuth());
+      setStep("upload");
+    } else {
+      setStep("restaurant");
+    }
   };
 
   const handleRestaurantSubmit = (data: { name: string; type: string; email: string; phone: string; logo: string | null }) => {
@@ -763,7 +786,7 @@ export default function App() {
             )}
 
             {step === "upload" && (
-              <MenuUpload key="upload" onBack={() => setStep("restaurant")} onNext={handleFilesSubmit} />
+              <MenuUpload key="upload" onBack={() => setStep(auth.user ? "welcome" : "restaurant")} onNext={handleFilesSubmit} />
             )}
 
             {step === "extracting" && (
