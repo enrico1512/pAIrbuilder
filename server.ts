@@ -844,7 +844,10 @@ async function startServer() {
                r.created_at,
                (SELECT COUNT(*) FROM food_items WHERE restaurant_id = r.id) AS dishes_count,
                (SELECT COUNT(*) FROM drinks      WHERE restaurant_id = r.id) AS drinks_count,
-               (SELECT COUNT(*) FROM pairings    WHERE restaurant_id = r.id) AS pairings_count
+               (SELECT COUNT(*) FROM pairings    WHERE restaurant_id = r.id) AS pairings_count,
+               (SELECT COUNT(*) FROM upload_sessions WHERE restaurant_id = r.id AND status = 'completed') AS upload_sessions_completed,
+               (SELECT COUNT(*) FROM upload_sessions WHERE restaurant_id = r.id AND status = 'completed' AND is_free) AS upload_sessions_free,
+               (SELECT COALESCE(SUM(amount_cents),0)/100.0 FROM upload_sessions WHERE restaurant_id = r.id AND status = 'completed' AND NOT is_free) AS ricavi_eur
         FROM restaurants r
         LEFT JOIN users u ON u.restaurant_id = r.id AND NOT u.is_platform_admin
         ORDER BY r.created_at DESC
@@ -891,12 +894,28 @@ async function startServer() {
         JOIN restaurants r  ON r.id  = p.restaurant_id
         ORDER BY r.created_at DESC, p.created_at DESC
       `);
+      const uploadSessionsRows = await pool.query(`
+        SELECT r.slug AS ristorante_slug, r.name AS ristorante,
+               r.is_guest AS ospite_anonimo,
+               us.status,
+               us.is_free AS gratuito,
+               (us.amount_cents / 100.0) AS importo_eur,
+               us.currency AS valuta,
+               us.stripe_checkout_session_id AS stripe_id,
+               (us.metadata->>'admin_bypass')::boolean AS admin_bypass,
+               us.started_at,
+               us.completed_at
+        FROM upload_sessions us
+        JOIN restaurants r ON r.id = us.restaurant_id
+        ORDER BY us.started_at DESC
+      `);
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(restaurantsRows.rows), 'Ristoranti');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dishesRows.rows),      'Piatti');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(drinksRows.rows),      'Drinks');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pairingsRows.rows),    'Abbinamenti');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(restaurantsRows.rows),     'Ristoranti');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dishesRows.rows),          'Piatti');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(drinksRows.rows),          'Drinks');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pairingsRows.rows),        'Abbinamenti');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(uploadSessionsRows.rows),  'Sessioni Upload');
 
       const buf: Buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
       const today = new Date().toISOString().slice(0, 10);
