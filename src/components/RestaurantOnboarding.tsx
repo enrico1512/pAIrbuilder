@@ -5,21 +5,26 @@ import { useTranslation } from "react-i18next";
 
 interface OnboardingProps {
   onNext: (data: { name: string; type: string; email: string; phone: string; logo: string | null }) => void;
+  initialData?: { name: string; type: string; email: string; phone: string; logo: string | null } | null;
 }
 
 const STORAGE_KEY = "pairbuilder_restaurant";
 
-export default function RestaurantOnboarding({ onNext }: OnboardingProps) {
+export default function RestaurantOnboarding({ onNext, initialData }: OnboardingProps) {
   const { t } = useTranslation();
+  // Priorita': initialData (es. dati profilo loggato) > localStorage > vuoto.
+  // Cosi' un utente registrato vede subito il nome ristorante gia' compilato,
+  // un guest ritrova quello che aveva digitato la sessione precedente.
   const saved = (() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
   })();
+  const seed = initialData || saved;
 
-  const [name, setName] = useState(saved.name || "");
-  const [type, setType] = useState(saved.type || "");
-  const [email, setEmail] = useState(saved.email || "");
-  const [phone, setPhone] = useState(saved.phone || "");
-  const [logo, setLogo] = useState<string | null>(saved.logo || null);
+  const [name, setName] = useState(seed.name || "");
+  const [type, setType] = useState(seed.type || "");
+  const [email, setEmail] = useState(seed.email || "");
+  const [phone, setPhone] = useState(seed.phone || "");
+  const [logo, setLogo] = useState<string | null>(seed.logo || null);
 
   // Track whether each field has been explicitly touched for autocomplete trigger
   const [nameFocused, setNameFocused] = useState(false);

@@ -37,11 +37,11 @@ export interface SendEmailResult {
 
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  // Default `from` punta al mittente ufficiale Ambrosia. Per funzionare in
-  // prod il dominio ambrosiavino.com deve essere verificato su Resend
-  // (DKIM/SPF), altrimenti l'API rifiuta la send. Se serve un mittente
-  // diverso (es. per dev/staging) override via env RESEND_FROM_EMAIL.
-  const from = process.env.RESEND_FROM_EMAIL || 'pAIrbuilder <support@ambrosiavino.com>';
+  // Default `from` usa il sottodominio dedicato `pairbuilder.ambrosiavino.com`
+  // (verificato su Resend con DKIM/SPF/DMARC). Vantaggio rispetto al root:
+  // zero impatto sui record DNS del sito principale e reputation email
+  // isolata dall'app. Override via env RESEND_FROM_EMAIL se serve.
+  const from = process.env.RESEND_FROM_EMAIL || 'pAIrbuilder <noreply@pairbuilder.ambrosiavino.com>';
 
   // Dev fallback: nessuna chiave, logghiamo la mail in console e basta.
   if (!apiKey) {

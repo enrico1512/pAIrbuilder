@@ -60,14 +60,19 @@ export default function App() {
     logo: auth.restaurant?.logoUrl || null,
   });
 
-  // Se l'utente si autentica mentre e' bloccato sul paywall, lo facciamo
-  // proseguire saltando lo step "restaurant" (l'onboarding ristorante e'
-  // gia' stato fatto come guest e adottato dal register, oppure e' un
-  // login di un profilo esistente). Andiamo direttamente a "upload".
+  // Routing post-auth:
+  //  - da "paywall" → "upload" (l'onboarding ristorante era gia' stato fatto
+  //    come guest e adottato dal register; oppure login profilo esistente).
+  //  - da "welcome" → "restaurant" (post register/login: il nome ristorante
+  //    c'e' gia' ma mancano tipo cucina/telefono/logo, da raccogliere qui).
   useEffect(() => {
-    if (auth.user && step === "paywall") {
+    if (!auth.user) return;
+    if (step === "paywall") {
       setRestaurantData(restaurantDataFromAuth());
       setStep("upload");
+    } else if (step === "welcome") {
+      setRestaurantData(restaurantDataFromAuth());
+      setStep("restaurant");
     }
   }, [auth.user, auth.restaurant, step]);
 
@@ -782,7 +787,7 @@ export default function App() {
             )}
 
             {step === "restaurant" && (
-              <RestaurantOnboarding key="restaurant" onNext={handleRestaurantSubmit} />
+              <RestaurantOnboarding key="restaurant" onNext={handleRestaurantSubmit} initialData={restaurantData} />
             )}
 
             {step === "upload" && (
