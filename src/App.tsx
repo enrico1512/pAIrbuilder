@@ -11,6 +11,7 @@ import AboutSection, { type InfoMode } from "./components/AboutSection";
 import { FlashIcon } from "./components/FlashIcon";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import AuthModal from "./components/AuthModal";
+import Paywall from "./components/Paywall";
 import { useAuth } from "./lib/auth";
 import { toBcp47, currencyFor } from "./i18n/languageMap";
 
@@ -20,7 +21,7 @@ import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
 import { sha256File, lookupCache, saveCache } from "./lib/aiCache";
 
-type Step = "welcome" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
+type Step = "welcome" | "paywall" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -46,6 +47,15 @@ export default function App() {
     if (!auth.user) localStorage.setItem(AUTH_DISMISS_KEY, '1');
     setAuthModalOpen(false);
   };
+
+  // Se l'utente si autentica mentre e' bloccato sul paywall, lo facciamo
+  // proseguire al passo "restaurant". Il nuovo profilo loggato avra' un
+  // restaurant_id proprio con 0 upload completati → quota check ok.
+  useEffect(() => {
+    if (auth.user && step === "paywall") {
+      setStep("restaurant");
+    }
+  }, [auth.user, step]);
 
   const openAuthModal = (tab: 'login' | 'register') => {
     setAuthModalTab(tab);
@@ -177,13 +187,31 @@ export default function App() {
     });
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
     // Reset memory when starting fresh
     setExtractedDishesMemory([]);
     setExtractedDrinksMemory([]);
     setPendingDrinkFiles([]);
     setProcessedDrinkFileCount(0);
     setHasPartialResults(false);
+
+    // Paywall check pay-per-use: la 1ª sessione e' gratis per ogni
+    // restaurant_id (guest o loggato), dalla 2ª in poi serve pagare 10€.
+    // - nessuna sessione attiva (visitatore nuovo) → can_start_free: true
+    // - restaurant in sessione con 0 upload completati → can_start_free: true
+    // - restaurant in sessione con ≥1 upload completato → can_start_free: false
+    try {
+      const res = await fetch("/api/uploads/quota");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.can_start_free === false) {
+          setStep("paywall");
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("[uploads/quota] check failed, proceeding without paywall:", err);
+    }
     setStep("restaurant");
   };
 
@@ -510,6 +538,14 @@ export default function App() {
         setStep("results");
         clearTimeout(timeoutId);
 
+        // Registra la sessione di upload come "completata" lato server.
+        // Per chi e' arrivato fino qui senza paywall (= aveva can_start_free
+        // true), il record creato sara' is_free=true, status='completed'.
+        // Fire-and-forget: se fallisce ci limitiamo a un warning.
+        void fetch('/api/uploads/start', { method: 'POST' }).catch((err) =>
+          console.warn('[uploads/start] failed (non-blocking):', err)
+        );
+
         // Dopo che dishes + drinks sono stati persistiti AND l'AI ha
         // ritornato i pairings, salviamo anche quelli. Il server risolve
         // i nomi → id usando le righe appena inserite, quindi MUST await il
@@ -644,13 +680,12 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
         <div ref={scrollContainerRef} className="flex-1 px-6 md:px-10 py-8 overflow-y-auto">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {step === "welcome" && (
               <motion.section
                 key="welcome"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
                 className="h-full flex flex-col items-center justify-center text-center space-y-8 py-12"
               >
                 <div className="space-y-4 max-w-3xl">
@@ -697,6 +732,24 @@ export default function App() {
                   </div>
                 </div>
               </motion.section>
+            )}
+
+            {step === "paywall" && (
+              <Paywall
+                key="paywall"
+                onRegister={() => {
+                  // Apre AuthModal in modalità registrazione. Dopo aver creato
+                  // il profilo, l'utente sarà autenticato e la prossima
+                  // pressione di "Inizia" rifarà il quota check (con
+                  // restaurant_id loggato e count=0 sul nuovo restaurant).
+                  setAuthModalTab("register");
+                  setAuthModalOpen(true);
+                }}
+                onLogin={() => {
+                  setAuthModalTab("login");
+                  setAuthModalOpen(true);
+                }}
+              />
             )}
 
             {step === "restaurant" && (

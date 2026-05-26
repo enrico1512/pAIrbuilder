@@ -286,6 +286,29 @@
       "generic": "Something went wrong. Please try again."
     }
   },
+  "paywall": {
+    "title": "You've already used your free upload",
+    "subtitle": "Create a profile to unlock all the benefits of pAIrbuilder.",
+    "discoverMore": "Learn more",
+    "discover": {
+      "heading": "What you get with a profile",
+      "items": {
+        "price": "Price: €10 for each additional upload (full session: menu + drink list + pairings).",
+        "savedProfiles": "Your profiles and uploaded menus stay saved: come back and edit them whenever you want.",
+        "analysis": "Analytics on your pairings: history, performance, exports.",
+        "history": "Complete history of your upload sessions and payments.",
+        "support": "Priority email support for registered restaurants."
+      }
+    },
+    "cta": {
+      "register": "Create your profile",
+      "login": "I already have a profile"
+    },
+    "ecosystem": {
+      "lead": "Want to unlock the full Ambrosia ecosystem?",
+      "tryLine": "Try <1>Winelist</1>."
+    }
+  },
   "about": {
     "back": "Back",
     "footer": "© 2024 Dionisus AI Digital Ecosystem",

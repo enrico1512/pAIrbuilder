@@ -286,6 +286,29 @@
       "generic": "Si è verificato un errore. Riprova."
     }
   },
+  "paywall": {
+    "title": "Hai già usato l'upload gratuito",
+    "subtitle": "Crea un profilo per sfruttare tutti i vantaggi di pAIrbuilder.",
+    "discoverMore": "Scopri di più",
+    "discover": {
+      "heading": "Cosa ottieni con un profilo",
+      "items": {
+        "price": "Costo: 10€ per ogni nuovo upload (sessione completa: menu + carta drink + abbinamenti).",
+        "savedProfiles": "I tuoi profili e i menu caricati restano salvati: puoi ritornare e modificarli quando vuoi.",
+        "analysis": "Strumenti di analisi sui tuoi abbinamenti: storico, performance, esportazioni.",
+        "history": "Storico completo delle sessioni di upload e dei pagamenti effettuati.",
+        "support": "Supporto prioritario via email per i ristoranti registrati."
+      }
+    },
+    "cta": {
+      "register": "Crea il tuo profilo",
+      "login": "Ho già un profilo"
+    },
+    "ecosystem": {
+      "lead": "Vuoi sfruttare tutte le potenzialità dell'ecosistema Ambrosia?",
+      "tryLine": "Prova <1>Winelist</1>."
+    }
+  },
   "about": {
     "back": "Torna indietro",
     "footer": "© 2024 Dionisus AI Digital Ecosystem",
