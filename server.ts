@@ -627,14 +627,34 @@ async function startServer() {
   // attesa che il flusso Stripe la chiuda (via webhook, in Fase 3).
   // ====================================================================
 
+  // Bypass paywall per i platform admin (`users.is_platform_admin = TRUE`):
+  // i tester interni BIBI Srl (es. enrico.patrizio@ambrosiavino.com,
+  // owner@trattoriademo.it) devono poter usare l'app senza limiti di
+  // upload, altrimenti dopo la prima sessione di test verrebbero bloccati.
+  // Vale solo per gli utenti loggati: l'admin in modalita' guest non viene
+  // riconosciuto (e' il comportamento voluto — admin = chi ha login attivo).
+  async function isPlatformAdmin(req: Request): Promise<boolean> {
+    const uid = req.session.userId;
+    if (!uid) return false;
+    const rows = await pool.query(
+      `SELECT is_platform_admin FROM users WHERE id = $1`,
+      [uid]
+    );
+    return rows.rows[0]?.is_platform_admin === true;
+  }
+
   // Contatore upload completati per il restaurant in sessione (loggato o
   // guest). Risponde sempre 200; can_start_free=true se nessun upload
   // completato finora (incluso il caso "nessuna sessione" — visitatore nuovo).
+  // I platform admin saltano sempre il paywall (admin_bypass:true).
   app.get('/api/uploads/quota', async (req, res) => {
     try {
       const rid = sessionRestaurantId(req);
       if (!rid) {
         return res.json({ can_start_free: true, completed_count: 0, has_session: false });
+      }
+      if (await isPlatformAdmin(req)) {
+        return res.json({ can_start_free: true, completed_count: 0, has_session: true, admin_bypass: true });
       }
       const rows = await pool.query(
         `SELECT COUNT(*)::int AS n
@@ -655,16 +675,20 @@ async function startServer() {
   // subito a 'completed'. Altrimenti is_free=false, amount=1000 cents, status
   // 'initiated': in attesa di Stripe Checkout (Fase 3 — endpoint
   // /api/checkout/create-session userà l'id ritornato qui).
+  // I platform admin sono sempre is_free=true (status='completed') —
+  // questi record restano in tabella per il tracking analytics, ma marcati
+  // come "interni" via metadata.admin_bypass=true.
   app.post('/api/uploads/start', requireSession, async (req, res) => {
     try {
       const rid = sessionRestaurantId(req)!;
+      const adminBypass = await isPlatformAdmin(req);
       const completed = await pool.query(
         `SELECT COUNT(*)::int AS n
            FROM upload_sessions
           WHERE restaurant_id = $1 AND status = 'completed'`,
         [rid]
       );
-      const isFree = (completed.rows[0]?.n ?? 0) === 0;
+      const isFree = adminBypass || (completed.rows[0]?.n ?? 0) === 0;
       const now = new Date();
       const [row] = await db.insert(uploadSessions).values({
         restaurantId: rid,
@@ -673,6 +697,7 @@ async function startServer() {
         amountCents: isFree ? 0 : 1000,
         currency: 'EUR',
         completedAt: isFree ? now : null,
+        metadata: adminBypass ? { admin_bypass: true } : null,
       }).returning();
       res.json({
         upload_session_id: row.id,
@@ -680,6 +705,7 @@ async function startServer() {
         status: row.status,
         amount_cents: row.amountCents,
         requires_payment: !row.isFree,
+        admin_bypass: adminBypass,
       });
     } catch (err: any) {
       console.error('Uploads start error:', err);
