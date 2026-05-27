@@ -76,7 +76,7 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
           {logo ? (
             <img src={logo} alt="Logo" className="w-full h-full object-cover" />
           ) : (
-            <Camera className="text-white/20 group-hover:text-brand-accent transition-colors" size={40} />
+            <Camera className="text-white/20 group-hover:text-brand-peach transition-colors" size={40} />
           )}
           <input
             type="file"
@@ -95,7 +95,7 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label htmlFor="org-name" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.name.label')}</label>
+            <label htmlFor="org-name" className="text-[10px] uppercase tracking-[0.2em] text-brand-peach font-bold ml-1">{t('onboarding.fields.name.label')}</label>
             <input
               id="org-name"
               type="text"
@@ -106,12 +106,12 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
               onBlur={handleNameBlur}
               onChange={(e) => setName(e.target.value)}
               placeholder={nameFocused && !name && savedName ? savedName : t('onboarding.fields.name.placeholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
+              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-peach transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="cuisine-type" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.type.label')}</label>
+            <label htmlFor="cuisine-type" className="text-[10px] uppercase tracking-[0.2em] text-brand-peach font-bold ml-1">{t('onboarding.fields.type.label')}</label>
             <input
               id="cuisine-type"
               type="text"
@@ -120,14 +120,14 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
               value={type}
               onChange={(e) => setType(e.target.value)}
               placeholder={t('onboarding.fields.type.placeholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
+              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-peach transition-colors placeholder:opacity-20 uppercase font-display tracking-tight text-xl"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.email.label')}</label>
+            <label htmlFor="email" className="text-[10px] uppercase tracking-[0.2em] text-brand-peach font-bold ml-1">{t('onboarding.fields.email.label')}</label>
             <input
               id="email"
               type="email"
@@ -136,12 +136,12 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t('onboarding.fields.email.placeholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 font-sans tracking-tight text-sm"
+              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-peach transition-colors placeholder:opacity-20 font-sans tracking-tight text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="tel" className="text-[10px] uppercase tracking-[0.2em] text-brand-accent font-bold ml-1">{t('onboarding.fields.phone.label')}</label>
+            <label htmlFor="tel" className="text-[10px] uppercase tracking-[0.2em] text-brand-peach font-bold ml-1">{t('onboarding.fields.phone.label')}</label>
             <input
               id="tel"
               type="tel"
@@ -150,7 +150,7 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder={t('onboarding.fields.phone.placeholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-accent transition-colors placeholder:opacity-20 font-sans tracking-tight text-sm"
+              className="w-full bg-white/5 border border-white/10 rounded-sm px-6 py-4 outline-none focus:border-brand-peach transition-colors placeholder:opacity-20 font-sans tracking-tight text-sm"
             />
           </div>
         </div>
