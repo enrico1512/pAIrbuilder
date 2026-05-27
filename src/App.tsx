@@ -652,18 +652,18 @@ export default function App() {
                 className="glass-panel min-w-[200px] p-2 mt-2 z-50 animate-in fade-in zoom-in-95 duration-200"
                 align="end"
               >
-                <DropdownMenu.Item 
+                <DropdownMenu.Item
                   onClick={() => { setInfoMode("about-us"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
-                  <BrainCircuit size={16} className="text-brand-accent" />
+                  <img src="/logo-a.svg" alt="" className="w-4 h-4 shrink-0" />
                   <span>{t('app.dropdown.aboutUs')}</span>
                 </DropdownMenu.Item>
-                <DropdownMenu.Item 
+                <DropdownMenu.Item
                   onClick={() => { setInfoMode("how-it-works"); setPreviousStep(step); setStep("about"); }}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
                 >
-                  <FlashIcon size={16} className="text-brand-accent" />
+                  <span className="text-brand-accent font-display text-base font-normal tracking-tight leading-none w-4 h-4 flex items-center justify-center shrink-0">AI</span>
                   <span>{t('app.dropdown.howItWorks')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 

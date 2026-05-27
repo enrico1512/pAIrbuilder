@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Loader2, Mail, KeyRound, Store, User, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { X, Loader2, Mail, KeyRound, Store, User, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import TurnstileWidget from "./TurnstileWidget";
 
@@ -328,22 +328,41 @@ interface FieldProps {
 }
 
 function Field({ icon, label, placeholder, value, onChange, type = 'text', autoComplete, required, minLength }: FieldProps) {
+  // Toggle "mostra/nascondi password": disponibile solo per type='password'.
+  // Cliccando l'icona occhio cambiamo `type` reso a 'text' senza modificare il
+  // prop, cosi' il browser autocomplete continua a vederlo come password.
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+  const effectiveType = isPassword && showPassword ? 'text' : type;
   return (
     <label className="block space-y-1">
       <span className="text-[10px] uppercase tracking-widest text-brand-accent font-bold flex items-center gap-2">
         {icon}
         {label}
       </span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        required={required}
-        minLength={minLength}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-brand-accent transition-colors placeholder:opacity-30 text-sm"
-      />
+      <div className="relative">
+        <input
+          type={effectiveType}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          required={required}
+          minLength={minLength}
+          className={`w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-brand-accent transition-colors placeholder:opacity-30 text-sm ${isPassword ? 'pr-11' : ''}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+            aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
     </label>
   );
 }

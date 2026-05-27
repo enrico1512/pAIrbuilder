@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Mail, Wine, Utensils, Zap, Sparkles, MessageSquare, Phone, ChevronLeft, Globe, BrainCircuit, Users, Smartphone, MessageCircle, Scale, Contrast } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
-import { FlashIcon } from "./FlashIcon";
 
 export type InfoMode = "how-it-works" | "about-us" | "contact";
 
@@ -30,10 +29,6 @@ export default function AboutSection({ mode, onBack }: AboutSectionProps) {
       {mode === "how-it-works" && <HowItWorksContent />}
       {mode === "about-us" && <AboutUsContent />}
       {mode === "contact" && <ContactContent />}
-
-      <footer className="text-center pt-8 opacity-30 text-[10px] uppercase tracking-[0.4em]">
-        {t('about.footer')}
-      </footer>
     </motion.div>
   );
 }
@@ -56,7 +51,7 @@ function HowItWorksContent() {
           <div className="grid md:grid-cols-2 gap-12">
             <div className="space-y-6">
               <div className="flex items-center gap-3 text-brand-accent">
-                <FlashIcon size={24} />
+                <img src="/logo-a.svg" alt="" className="w-7 h-7 shrink-0" />
                 <h2 className="text-3xl font-display uppercase text-white font-normal tracking-tight">{t('about.howItWorks.molecularBalance.heading')}</h2>
               </div>
               <div className="space-y-4 text-white/80 leading-relaxed">
@@ -135,13 +130,11 @@ function HowItWorksContent() {
       {/* AMBROSIAVINO FUNNEL CALL TO ACTION */}
       <section className="mt-20 p-12 rounded-[2rem] bg-gradient-to-br from-brand-accent/20 to-transparent border border-brand-accent/30 text-center space-y-8">
         <div className="flex justify-center mb-4">
-          <div className="w-20 h-20 bg-white/10 rounded-full p-4 flex items-center justify-center">
-            <img
-              src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=200&auto=format&fit=crop"
-              alt="Ambrosiavino Logo"
-              className="w-full h-full object-contain filter brightness-0 invert opacity-80"
-            />
-          </div>
+          <img
+            src="/logo-ambrosiavino.svg"
+            alt="Ambrosiavino"
+            className="h-20 md:h-24 w-auto"
+          />
         </div>
         <div className="space-y-4 max-w-2xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-display uppercase tracking-tight font-normal">{t('about.howItWorks.cta.title')}</h2>
@@ -157,7 +150,7 @@ function HowItWorksContent() {
             className="btn-primary flex items-center gap-3 px-10 py-5 text-lg group"
           >
             {t('about.howItWorks.cta.button')}
-            <Globe className="group-hover:rotate-12 transition-transform" />
+            <img src="/logo-a.svg" alt="" className="w-6 h-6 group-hover:rotate-12 transition-transform" />
           </a>
           <p className="text-xs uppercase tracking-widest opacity-40 font-bold">{t('about.howItWorks.cta.tagline')}</p>
         </div>

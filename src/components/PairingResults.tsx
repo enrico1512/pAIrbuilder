@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Wine, Beer, Martini, Coffee, GlassWater, ChevronRight, LayoutGrid, List, Share2, Printer, Copy, Check, Scale, Contrast, CheckSquare, Square, ArrowRight, ArrowLeft } from "lucide-react";
-import { FlashIcon } from "./FlashIcon";
 import { useState, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { Pairing } from "../lib/gemini";
@@ -239,9 +238,8 @@ export default function PairingResults({ pairings, restaurant, onReset }: Pairin
               {/* Instructional header */}
               <div className="mb-6 bg-brand-accent/10 border border-brand-accent/25 rounded-xl p-4">
                 <div className="flex items-start gap-3">
-                  <FlashIcon size={18} className="text-brand-accent mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-white text-[11px] font-bold uppercase tracking-wide mb-1">{t('pairing.dashboard.badge')}</p>
+                    <p className="text-white text-[14px] font-bold uppercase tracking-wide mb-1">{t('pairing.dashboard.badge')}</p>
                     <p className="text-white/60 text-[10px] leading-relaxed">
                       <Trans i18nKey="pairing.dashboard.instruction" components={{ 1: <span className="text-brand-accent font-bold" /> }} />
                     </p>

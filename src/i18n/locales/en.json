@@ -112,7 +112,7 @@
       "categoryOptions": {
         "redWine": "Red Wine",
         "whiteWine": "White Wine",
-        "roseWine": "Rosé Wine",
+        "roseWine": "Rose Wine",
         "sparkling": "Sparkling",
         "sweetWine": "Sweet Wine"
       },
@@ -344,7 +344,7 @@
   },
   "about": {
     "back": "Back",
-    "footer": "© 2024 Dionisus AI Digital Ecosystem",
+    "footer": "",
     "howItWorks": {
       "title": "The Algorithm<1/><2>of Taste</2>",
       "subtitle": "PAIRBUILDER doesn't just read data. It interprets the soul of your menu to create sensory connections once reserved for the greatest Sommeliers.",
@@ -376,7 +376,7 @@
         "title": "Want to automate the experience?",
         "description": "PAIRBUILDER is the perfect tool for your printable pairings. But if you want an interactive <1>Digital Wine List</1> that sells itself, discover Ambrosiavino.",
         "button": "Switch to Ambrosiavino",
-        "tagline": "The professional evolution of your beverage design"
+        "tagline": "Smart wine technologies"
       }
     },
     "aboutUs": {

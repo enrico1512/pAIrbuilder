@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight, Check, BrainCircuit, Edit2, BarChart3, TrendingUp, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Edit2, BarChart3, TrendingUp, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { type Dish, type Drink, analyzeDrinksWithMenu, isWineCategory, isPizzaCategory } from "../lib/gemini";
 
@@ -230,7 +230,6 @@ export default function MenuReview({
     >
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 text-brand-accent animate-pulse mb-2">
-          <BrainCircuit size={18} />
           <span className="text-[10px] uppercase font-bold tracking-widest">{t('menuReview.badge')}</span>
         </div>
         <h2 className="text-5xl uppercase font-display">{t('menuReview.title')}</h2>
