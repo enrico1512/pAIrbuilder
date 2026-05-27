@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UtensilsCrossed, Loader2, ChevronDown, User, Mail, Info, Settings, LogOut, AlertCircle, CheckCircle2, Zap, BrainCircuit } from "lucide-react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { UtensilsCrossed, Loader2, Info, AlertCircle, Zap, BrainCircuit } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import RestaurantOnboarding from "./components/RestaurantOnboarding";
 import MenuUpload from "./components/MenuUpload";
@@ -9,7 +8,8 @@ import MenuReview from "./components/MenuReview";
 import PairingResults from "./components/PairingResults";
 import AboutSection, { type InfoMode } from "./components/AboutSection";
 import { FlashIcon } from "./components/FlashIcon";
-import LanguageSwitcher from "./components/LanguageSwitcher";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
 import Paywall from "./components/Paywall";
 import { useAuth } from "./lib/auth";
@@ -21,7 +21,15 @@ import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
 import { sha256File, lookupCache, saveCache } from "./lib/aiCache";
 
-type Step = "welcome" | "paywall" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
+export type Step = "welcome" | "paywall" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
+
+export type RestaurantData = {
+  name: string;
+  type: string;
+  email: string;
+  phone: string;
+  logo: string | null;
+} | null;
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -622,94 +630,16 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden selection:bg-brand-accent selection:text-brand-bg">
-      {/* Header */}
-      <header className="grid grid-cols-3 items-center px-6 md:px-10 py-6 border-b border-white/10 z-10 bg-brand-bg/80 backdrop-blur-sm sticky top-0">
-        <div className="flex items-center gap-4">
-          <div className="text-left hidden lg:block">
-            <p className="text-[10px] uppercase tracking-widest opacity-60">{t('app.header.restaurantLabel')}</p>
-            <p className="text-sm font-bold truncate max-w-[150px]">{restaurantData?.name || auth.restaurant?.name || t('app.header.restaurantFallback')}</p>
-          </div>
-        </div>
-
-        <div className="text-center invisible md:visible opacity-0 pointer-events-none">
-          {/* Title removed as requested */}
-        </div>
-
-        <div className="flex justify-end items-center gap-4">
-          <LanguageSwitcher />
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-colors border border-white/10 outline-none">
-                <User size={18} className="text-brand-accent" />
-                <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">{t('app.header.menuTrigger')}</span>
-                <ChevronDown size={14} className="opacity-50" />
-              </button>
-            </DropdownMenu.Trigger>
-
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content 
-                className="glass-panel min-w-[200px] p-2 mt-2 z-50 animate-in fade-in zoom-in-95 duration-200"
-                align="end"
-              >
-                <DropdownMenu.Item
-                  onClick={() => { setInfoMode("about-us"); setPreviousStep(step); setStep("about"); }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                >
-                  <img src="/logo-a.svg" alt="" className="w-4 h-4 shrink-0" />
-                  <span>{t('app.dropdown.aboutUs')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  onClick={() => { setInfoMode("how-it-works"); setPreviousStep(step); setStep("about"); }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                >
-                  <span className="text-brand-accent font-display text-base font-normal tracking-tight leading-none w-4 h-4 flex items-center justify-center shrink-0">AI</span>
-                  <span>{t('app.dropdown.howItWorks')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item 
-                  onClick={() => { setInfoMode("contact"); setPreviousStep(step); setStep("about"); }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                >
-                  <Mail size={16} className="text-brand-accent" />
-                  <span>{t('app.dropdown.contact')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
-                {auth.user ? (
-                  <>
-                    <div className="px-4 py-2 text-[10px] uppercase tracking-widest text-white/40">
-                      {t('auth.menu.loggedAs', { name: auth.restaurant?.name || auth.user.email })}
-                    </div>
-                    <DropdownMenu.Item
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg outline-none cursor-pointer transition-colors mt-1"
-                    >
-                      <LogOut size={16} />
-                      <span>{t('auth.menu.logout')}</span>
-                    </DropdownMenu.Item>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenu.Item
-                      onClick={() => openAuthModal('login')}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                    >
-                      <User size={16} className="text-brand-accent" />
-                      <span>{t('auth.menu.loginEntry')}</span>
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item
-                      onClick={() => openAuthModal('register')}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-brand-accent hover:bg-brand-accent/10 rounded-lg outline-none cursor-pointer transition-colors"
-                    >
-                      <Settings size={16} />
-                      <span>{t('auth.menu.registerEntry')}</span>
-                    </DropdownMenu.Item>
-                  </>
-                )}
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
-        </div>
-      </header>
+    <div className="h-screen flex flex-col overflow-hidden selection:bg-brand-peach selection:text-brand-violet">
+      <Header
+        restaurantData={restaurantData}
+        step={step}
+        setStep={setStep}
+        setInfoMode={setInfoMode}
+        setPreviousStep={setPreviousStep}
+        openAuthModal={openAuthModal}
+        handleLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
@@ -723,7 +653,7 @@ export default function App() {
                 className="h-full flex flex-col items-center justify-center text-center space-y-8 py-12"
               >
                 <div className="space-y-4 max-w-3xl">
-                  <h2 className="text-7xl lg:text-9xl leading-[0.8] mb-4 uppercase font-display text-brand-accent font-normal tracking-tight">
+                  <h2 className="text-7xl lg:text-9xl leading-[0.8] mb-4 uppercase font-display text-brand-peach font-normal tracking-tight">
                     p<span className="text-white">AI</span>rbuilder
                   </h2>
                   <p className="text-xl text-white font-light max-w-xl mx-auto">
@@ -738,7 +668,7 @@ export default function App() {
                   <div className="max-w-4xl text-sm text-white/80 mt-10 leading-relaxed flex flex-col items-center gap-10">
                     {/* Sezione Perche' Funziona */}
                     <div className="w-full space-y-6">
-                      <h3 className="text-3xl font-display text-brand-accent uppercase tracking-tight text-center font-normal">{t('app.welcome.whyHeading')}</h3>
+                      <h3 className="text-3xl font-display text-brand-peach uppercase tracking-tight text-center font-normal">{t('app.welcome.whyHeading')}</h3>
                       <div className="grid md:grid-cols-3 gap-6 text-left">
                         <div className="glass-panel p-6 border-brand-accent/20 bg-brand-accent/5">
                           <p className="text-white/80">{t('app.welcome.whyCard1')}</p>
@@ -754,11 +684,11 @@ export default function App() {
 
                     {/* Sezione Come Funziona (Tecnologia) */}
                     <div className="max-w-2xl text-center space-y-6 pt-10 border-t border-white/10">
-                      <h3 className="text-3xl font-display text-brand-accent uppercase tracking-tight font-normal">{t('app.welcome.howHeading')}</h3>
+                      <h3 className="text-3xl font-display text-brand-peach uppercase tracking-tight font-normal">{t('app.welcome.howHeading')}</h3>
                       <p className="text-white/80">{t('app.welcome.howDescription')}</p>
                       <button
                         onClick={() => { setInfoMode("how-it-works"); setStep("about"); }}
-                        className="text-brand-accent hover:underline text-xs font-bold uppercase tracking-wider"
+                        className="text-brand-peach hover:underline text-xs font-bold uppercase tracking-wider"
                       >
                         {t('app.welcome.discoverMore')}
                       </button>
@@ -803,7 +733,7 @@ export default function App() {
               >
                 <div className="relative group">
                   <div className="absolute inset-0 bg-brand-accent/20 blur-2xl rounded-full group-hover:bg-brand-accent/30 transition-all duration-500 animate-pulse"></div>
-                  <Loader2 className="animate-spin text-brand-accent relative z-10" size={80} />
+                  <Loader2 className="animate-spin text-brand-peach relative z-10" size={80} />
                 </div>
                 <div className="text-center space-y-4">
                   <div className="space-y-1">
@@ -818,7 +748,7 @@ export default function App() {
                     <motion.p 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-brand-accent font-medium"
+                      className="text-brand-peach font-medium"
                     >
                       {currentExtractionItem}
                     </motion.p>
@@ -835,13 +765,13 @@ export default function App() {
                   {/* Real-time Extraction Counters */}
                   <div className="flex justify-center gap-10 mt-6 pt-4 border-t border-white/5">
                     <div className="text-center">
-                      <div className="text-3xl font-display text-brand-accent leading-none">
+                      <div className="text-3xl font-display text-brand-peach leading-none">
                         {foodResults.reduce((acc, p) => acc + p.dishes.length, 0) + currentScanningCounts.dishes}
                       </div>
                       <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1">{t('app.extracting.counter.dishes')}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-display text-brand-accent leading-none">
+                      <div className="text-3xl font-display text-brand-peach leading-none">
                         {[...foodResults, ...drinkResults].reduce((acc, p) => acc + (p.drinks?.length || 0), 0) + currentScanningCounts.drinks}
                       </div>
                       <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 mt-1">{t('app.extracting.counter.drinks')}</div>
@@ -870,7 +800,7 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="h-full flex flex-col items-center justify-center py-24 space-y-8"
               >
-                <Loader2 className="animate-spin text-brand-accent" size={64} />
+                <Loader2 className="animate-spin text-brand-peach" size={64} />
                 <div className="text-center space-y-2">
                   <h2 className="text-4xl uppercase">{t('app.loading.title')}</h2>
                   <p className="text-white/60 italic font-display text-xl">{t('app.loading.subtitle')}</p>
@@ -899,7 +829,7 @@ export default function App() {
                 className="max-w-4xl mx-auto space-y-8 py-10"
               >
                 <div className="glass-panel p-10 space-y-8 text-center border-brand-accent/30 bg-brand-accent/5">
-                  <div className="mx-auto w-20 h-20 flex items-center justify-center text-brand-accent mb-6">
+                  <div className="mx-auto w-20 h-20 flex items-center justify-center text-brand-peach mb-6">
                     <FlashIcon size={64} />
                   </div>
                   <h2 className="text-4xl font-display uppercase tracking-tight font-normal">{t('app.addDrinks.title')}</h2>
@@ -912,7 +842,7 @@ export default function App() {
                       />
                     </p>
                     <div className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-xl border border-white/10">
-                      <p className="text-sm font-bold uppercase tracking-widest text-brand-accent">{t('app.addDrinks.remainingHeading', { count: pendingDrinkFiles.length })}</p>
+                      <p className="text-sm font-bold uppercase tracking-widest text-brand-peach">{t('app.addDrinks.remainingHeading', { count: pendingDrinkFiles.length })}</p>
                       <ul className="text-xs space-y-1 opacity-60">
                         {pendingDrinkFiles.map((f, i) => (
                           <li key={i}>{f.name}</li>
@@ -961,15 +891,15 @@ export default function App() {
                   </div>
                   <div className="glass-panel p-4 text-center">
                     <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.dishesExtracted')}</p>
-                    <p className="text-xl font-display text-brand-accent">{extractedDishesMemory.length}</p>
+                    <p className="text-xl font-display text-brand-peach">{extractedDishesMemory.length}</p>
                   </div>
                   <div className="glass-panel p-4 text-center">
                     <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.drinksExtracted')}</p>
-                    <p className="text-xl font-display text-brand-accent">{extractedDrinksMemory.length}</p>
+                    <p className="text-xl font-display text-brand-peach">{extractedDrinksMemory.length}</p>
                   </div>
                   <div className="glass-panel p-4 text-center">
                     <p className="text-[10px] uppercase opacity-40 mb-1">{t('app.addDrinks.stats.filesRemaining')}</p>
-                    <p className="text-xl font-display text-brand-accent">{pendingDrinkFiles.length}</p>
+                    <p className="text-xl font-display text-brand-peach">{pendingDrinkFiles.length}</p>
                   </div>
                 </div>
               </motion.section>
@@ -978,42 +908,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer Section */}
-      <footer className="py-6 px-6 md:px-10 border-t border-white/10 grid grid-cols-3 items-center bg-brand-bg-dark">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-            <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">{t('app.footer.aiEngine')}</span>
-          </div>
-          {configStatus && (
-            <div className="flex items-center gap-2 group cursor-help relative">
-              {configStatus.status === "Full" ? (
-                <CheckCircle2 size={12} className="text-green-500" />
-              ) : configStatus.status === "Standard" ? (
-                <CheckCircle2 size={12} className="text-green-500" />
-              ) : (
-                <CheckCircle2 size={12} className="text-green-500" />
-              )}
-              <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
-                {t('app.footer.aiModeLabel', { status: configStatus.status })}
-              </span>
-              <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
-                {configStatus.message}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className="text-center">
-          <p className="text-3xl md:text-5xl font-normal tracking-tighter text-brand-accent uppercase opacity-90 font-display whitespace-nowrap">
-            {t('app.footer.tagline')}
-          </p>
-        </div>
-        
-        <div className="text-[10px] opacity-40 uppercase tracking-widest text-right">
-          {t('app.footer.copyright')}
-        </div>
-      </footer>
+      <Footer configStatus={configStatus} />
 
       <AuthModal open={authModalOpen} onClose={handleAuthClose} initialTab={authModalTab} />
     </div>

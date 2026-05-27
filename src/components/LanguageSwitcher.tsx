@@ -4,6 +4,18 @@ import { Check, Languages } from "lucide-react";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "../i18n";
 import { useAuth } from "../lib/auth";
 
+/**
+ * LanguageSwitcher — pill outlined peach, design system §3.3.
+ *
+ * Stile canonico condiviso con Hub, Experience, Winelist:
+ *   - border peach/30 hover peach
+ *   - font-display uppercase tracking-[0.25em] text-xs
+ *   - text peach/80 hover peach
+ *
+ * Su pAIrbuilder mantiene il dropdown (Radix) perché supporta multi-lingua,
+ * mentre Hub/Experience/Winelist hanno un toggle 2-lingue. Il pattern
+ * dropdown è la predisposizione futura quando l'ecosistema avrà FR/DE/ES.
+ */
 export default function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
   const { user } = useAuth();
@@ -30,10 +42,10 @@ export default function LanguageSwitcher() {
       <DropdownMenu.Trigger asChild>
         <button
           aria-label={t('common.language.' + current)}
-          className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-2 rounded-full transition-colors border border-white/10 outline-none"
+          className="inline-flex items-center gap-2 border border-brand-peach/30 hover:border-brand-peach px-3 py-1 rounded-full font-display uppercase tracking-[0.25em] text-xs text-brand-peach/80 hover:text-brand-peach transition-colors outline-none"
         >
-          <Languages size={16} className="text-brand-accent" />
-          <span className="text-xs font-bold uppercase tracking-widest">{current}</span>
+          <Languages size={14} className="text-brand-peach/80" />
+          <span>{current}</span>
         </button>
       </DropdownMenu.Trigger>
 
@@ -49,10 +61,10 @@ export default function LanguageSwitcher() {
               className="flex items-center justify-between gap-3 px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
             >
               <span className="flex items-center gap-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent w-6">{lng}</span>
+                <span className="font-display text-[10px] font-bold uppercase tracking-[0.25em] text-brand-peach w-6">{lng}</span>
                 <span>{t('common.language.' + lng)}</span>
               </span>
-              {lng === current && <Check size={14} className="text-brand-accent" />}
+              {lng === current && <Check size={14} className="text-brand-peach" />}
             </DropdownMenu.Item>
           ))}
         </DropdownMenu.Content>

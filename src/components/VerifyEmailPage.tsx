@@ -41,20 +41,20 @@ export default function VerifyEmailPage() {
   }, [t]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-brand-bg">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-brand-violet">
       <div className="glass-panel w-full max-w-md p-8 space-y-6 text-center">
         {state === 'loading' && (
           <>
-            <Loader2 className="animate-spin text-brand-accent mx-auto" size={48} />
+            <Loader2 className="animate-spin text-brand-peach mx-auto" size={48} />
             <p className="text-white/70">…</p>
           </>
         )}
         {state === 'success' && (
           <>
-            <div className="mx-auto w-16 h-16 rounded-full bg-brand-accent/10 border border-brand-accent/30 flex items-center justify-center">
-              <CheckCircle2 size={32} className="text-brand-accent" />
+            <div className="mx-auto w-16 h-16 rounded-full bg-brand-peach/10 border border-brand-peach/30 flex items-center justify-center">
+              <CheckCircle2 size={32} className="text-brand-peach" />
             </div>
-            <h2 className="text-3xl font-display uppercase tracking-tight text-brand-accent leading-none">
+            <h2 className="text-3xl font-display uppercase tracking-tight text-brand-peach leading-none">
               {t('auth.verify.successTitle')}
             </h2>
             <p className="text-white/70 text-sm">{t('auth.verify.successBody')}</p>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyRound, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import Field from "./Field";
 
 /**
  * Pagina mostrata su `/reset-password?token=...`. Form per impostare la
@@ -54,10 +55,10 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-brand-bg">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-brand-violet">
       <div className="glass-panel w-full max-w-md p-8 space-y-6">
         <div className="text-center space-y-2">
-          <h2 className="text-3xl font-display uppercase tracking-tight text-brand-accent leading-none">
+          <h2 className="text-3xl font-display uppercase tracking-tight text-brand-peach leading-none">
             {t('auth.reset.title')}
           </h2>
           <p className="text-white/70 text-sm">{t('auth.reset.subtitle')}</p>
@@ -65,8 +66,8 @@ export default function ResetPasswordPage() {
 
         {success ? (
           <div className="space-y-4 text-center">
-            <div className="mx-auto w-14 h-14 rounded-full bg-brand-accent/10 border border-brand-accent/30 flex items-center justify-center">
-              <CheckCircle2 size={28} className="text-brand-accent" />
+            <div className="mx-auto w-14 h-14 rounded-full bg-brand-peach/10 border border-brand-peach/30 flex items-center justify-center">
+              <CheckCircle2 size={28} className="text-brand-peach" />
             </div>
             <h3 className="text-xl font-display uppercase tracking-tight text-white">
               {t('auth.reset.successTitle')}
@@ -78,17 +79,27 @@ export default function ResetPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <PwdField
+            <Field
+              icon={<KeyRound size={14} />}
               label={t('auth.reset.newPassword')}
+              placeholder=""
               value={newPassword}
               onChange={setNewPassword}
+              type="password"
               autoComplete="new-password"
+              required
+              minLength={8}
             />
-            <PwdField
+            <Field
+              icon={<KeyRound size={14} />}
               label={t('auth.reset.confirmPassword')}
+              placeholder=""
               value={confirmPassword}
               onChange={setConfirmPassword}
+              type="password"
               autoComplete="new-password"
+              required
+              minLength={8}
             />
 
             {error && (
@@ -110,35 +121,5 @@ export default function ResetPasswordPage() {
         )}
       </div>
     </div>
-  );
-}
-
-function PwdField({
-  label,
-  value,
-  onChange,
-  autoComplete,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  autoComplete?: string;
-}) {
-  return (
-    <label className="block space-y-1">
-      <span className="text-[10px] uppercase tracking-widest text-brand-accent font-bold flex items-center gap-2">
-        <KeyRound size={14} />
-        {label}
-      </span>
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete={autoComplete}
-        required
-        minLength={8}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-brand-accent transition-colors text-sm"
-      />
-    </label>
   );
 }
