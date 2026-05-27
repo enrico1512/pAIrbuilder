@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UtensilsCrossed, Loader2, ChevronDown, User, Mail, Info, Settings, LogOut, AlertCircle, CheckCircle2, Zap, BrainCircuit } from "lucide-react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { UtensilsCrossed, Loader2, Info, AlertCircle, Zap, BrainCircuit } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import RestaurantOnboarding from "./components/RestaurantOnboarding";
 import MenuUpload from "./components/MenuUpload";
@@ -9,7 +8,8 @@ import MenuReview from "./components/MenuReview";
 import PairingResults from "./components/PairingResults";
 import AboutSection, { type InfoMode } from "./components/AboutSection";
 import { FlashIcon } from "./components/FlashIcon";
-import LanguageSwitcher from "./components/LanguageSwitcher";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
 import Paywall from "./components/Paywall";
 import { useAuth } from "./lib/auth";
@@ -21,7 +21,15 @@ import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
 import { sha256File, lookupCache, saveCache } from "./lib/aiCache";
 
-type Step = "welcome" | "paywall" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
+export type Step = "welcome" | "paywall" | "restaurant" | "upload" | "extracting" | "review" | "loading" | "results" | "about" | "add-drinks";
+
+export type RestaurantData = {
+  name: string;
+  type: string;
+  email: string;
+  phone: string;
+  logo: string | null;
+} | null;
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -623,96 +631,15 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden selection:bg-brand-peach selection:text-brand-violet">
-      {/* Header — Design system §3.2 (variante minimal app-style):
-            h-16/lg:h-20 equivalente (py-6 con contenuto interno),
-            bg-brand-violet/80 backdrop-blur-sm, sticky.
-            Niente logo né nav-link: l'app è in-context. */}
-      <header className="grid grid-cols-3 items-center px-6 md:px-10 py-6 border-b border-white/10 z-10 bg-brand-violet/80 backdrop-blur-sm sticky top-0">
-        <div className="flex items-center gap-4">
-          <div className="text-left hidden lg:block">
-            <p className="text-[10px] uppercase tracking-widest opacity-60">{t('app.header.restaurantLabel')}</p>
-            <p className="text-sm font-bold truncate max-w-[150px]">{restaurantData?.name || auth.restaurant?.name || t('app.header.restaurantFallback')}</p>
-          </div>
-        </div>
-
-        <div className="text-center invisible md:visible opacity-0 pointer-events-none">
-          {/* Title removed as requested */}
-        </div>
-
-        <div className="flex justify-end items-center gap-4">
-          <LanguageSwitcher />
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-colors border border-white/10 outline-none">
-                <User size={18} className="text-brand-peach" />
-                <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">{t('app.header.menuTrigger')}</span>
-                <ChevronDown size={14} className="opacity-50" />
-              </button>
-            </DropdownMenu.Trigger>
-
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content 
-                className="glass-panel min-w-[200px] p-2 mt-2 z-50 animate-in fade-in zoom-in-95 duration-200"
-                align="end"
-              >
-                <DropdownMenu.Item
-                  onClick={() => { setInfoMode("about-us"); setPreviousStep(step); setStep("about"); }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                >
-                  <img src="/logo-a.svg" alt="" className="w-4 h-4 shrink-0" />
-                  <span>{t('app.dropdown.aboutUs')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  onClick={() => { setInfoMode("how-it-works"); setPreviousStep(step); setStep("about"); }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                >
-                  <span className="text-brand-peach font-display text-base font-normal tracking-tight leading-none w-4 h-4 flex items-center justify-center shrink-0">AI</span>
-                  <span>{t('app.dropdown.howItWorks')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item 
-                  onClick={() => { setInfoMode("contact"); setPreviousStep(step); setStep("about"); }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                >
-                  <Mail size={16} className="text-brand-peach" />
-                  <span>{t('app.dropdown.contact')}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
-                {auth.user ? (
-                  <>
-                    <div className="px-4 py-2 text-[10px] uppercase tracking-widest text-white/40">
-                      {t('auth.menu.loggedAs', { name: auth.restaurant?.name || auth.user.email })}
-                    </div>
-                    <DropdownMenu.Item
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg outline-none cursor-pointer transition-colors mt-1"
-                    >
-                      <LogOut size={16} />
-                      <span>{t('auth.menu.logout')}</span>
-                    </DropdownMenu.Item>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenu.Item
-                      onClick={() => openAuthModal('login')}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
-                    >
-                      <User size={16} className="text-brand-peach" />
-                      <span>{t('auth.menu.loginEntry')}</span>
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item
-                      onClick={() => openAuthModal('register')}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-brand-peach hover:bg-brand-accent/10 rounded-lg outline-none cursor-pointer transition-colors"
-                    >
-                      <Settings size={16} />
-                      <span>{t('auth.menu.registerEntry')}</span>
-                    </DropdownMenu.Item>
-                  </>
-                )}
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
-        </div>
-      </header>
+      <Header
+        restaurantData={restaurantData}
+        step={step}
+        setStep={setStep}
+        setInfoMode={setInfoMode}
+        setPreviousStep={setPreviousStep}
+        openAuthModal={openAuthModal}
+        handleLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
@@ -981,45 +908,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer — Design system §4.2 (variante minimal app-style):
-            bg-brand-violet-dark (più scuro per distinguersi dall'header),
-            grid 3-col: status AI engine SX | "BEVI DA DIO" centrale (Vina Sans peach) | copyright DX */}
-      <footer className="py-6 px-6 md:px-10 border-t border-white/10 grid grid-cols-3 items-center bg-brand-violet-dark">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-ambrosia-teal rounded-full animate-pulse shadow-[0_0_8px_rgba(46,188,177,0.5)]"></span>
-            <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">{t('app.footer.aiEngine')}</span>
-          </div>
-          {configStatus && (
-            <div className="flex items-center gap-2 group cursor-help relative">
-              {configStatus.status === "Full" ? (
-                <CheckCircle2 size={12} className="text-green-500" />
-              ) : configStatus.status === "Standard" ? (
-                <CheckCircle2 size={12} className="text-green-500" />
-              ) : (
-                <CheckCircle2 size={12} className="text-green-500" />
-              )}
-              <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
-                {t('app.footer.aiModeLabel', { status: configStatus.status })}
-              </span>
-              <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
-                {configStatus.message}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* "BEVI DA DIO" centrale — coerente con lockup Hub/Experience (design system §4.2) */}
-        <div className="text-center">
-          <p className="text-3xl md:text-5xl font-normal tracking-tight text-brand-peach uppercase opacity-90 font-display whitespace-nowrap">
-            {t('app.footer.tagline')}
-          </p>
-        </div>
-        
-        <div className="text-[10px] opacity-40 uppercase tracking-widest text-right">
-          {t('app.footer.copyright')}
-        </div>
-      </footer>
+      <Footer configStatus={configStatus} />
 
       <AuthModal open={authModalOpen} onClose={handleAuthClose} initialTab={authModalTab} />
     </div>
