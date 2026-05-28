@@ -41,38 +41,39 @@ export default function Footer({ configStatus }: FooterProps) {
     : 'https://ambrosiavino.com/en/terms';
 
   return (
-    <footer className="py-6 px-6 md:px-10 border-t border-white/10 grid grid-cols-3 items-center bg-brand-violet-dark">
-      {/* SX: status AI engine */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-ambrosia-teal rounded-full animate-pulse shadow-[0_0_8px_rgba(46,188,177,0.5)]"></span>
-          <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">
-            {t("app.footer.aiEngine")}
-          </span>
-        </div>
-        {configStatus && (
-          <div className="flex items-center gap-2 group cursor-help relative">
-            <CheckCircle2 size={12} className="text-green-500" />
-            <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
-              {t("app.footer.aiModeLabel", { status: configStatus.status })}
+    <footer className="border-t border-white/10 bg-brand-violet-dark">
+      {/* Top: status SX + BEVI DA DIO centro + privacy/terms DX */}
+      <div className="py-6 px-6 md:px-10 grid grid-cols-3 items-center">
+        {/* SX: status AI engine */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-ambrosia-teal rounded-full animate-pulse shadow-[0_0_8px_rgba(46,188,177,0.5)]"></span>
+            <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">
+              {t("app.footer.aiEngine")}
             </span>
-            <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
-              {configStatus.message}
-            </div>
           </div>
-        )}
-      </div>
+          {configStatus && (
+            <div className="flex items-center gap-2 group cursor-help relative">
+              <CheckCircle2 size={12} className="text-green-500" />
+              <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
+                {t("app.footer.aiModeLabel", { status: configStatus.status })}
+              </span>
+              <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
+                {configStatus.message}
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* CENTRO: "BEVI DA DIO" lockup (coerente con Hub/Experience footer) */}
-      <div className="text-center">
-        <p className="text-3xl md:text-5xl font-normal tracking-tight text-brand-peach uppercase opacity-90 font-display whitespace-nowrap">
-          {t("app.footer.tagline")}
-        </p>
-      </div>
+        {/* CENTRO: "BEVI DA DIO" lockup (coerente con Hub/Experience footer) */}
+        <div className="text-center">
+          <p className="text-3xl md:text-5xl font-normal tracking-tight text-brand-peach uppercase opacity-90 font-display whitespace-nowrap">
+            {t("app.footer.tagline")}
+          </p>
+        </div>
 
-      {/* DX: legali + copyright */}
-      <div className="text-[10px] uppercase tracking-widest text-right flex flex-col items-end gap-1">
-        <div className="flex gap-3 opacity-60">
+        {/* DX: privacy + terms (solo legali, senza copyright/indirizzo) */}
+        <div className="text-[10px] uppercase tracking-widest text-right flex justify-end gap-3 opacity-60">
           <a
             href={privacyUrl}
             target="_blank"
@@ -91,15 +92,16 @@ export default function Footer({ configStatus }: FooterProps) {
             {t("app.footer.terms")}
           </a>
         </div>
-        <div className="opacity-40 leading-relaxed">
-          {/* Anno dinamico (decisione 2026-05-28): evita di hardcodare il year e
-              dover ricordarsi di bumparlo a fine dicembre.
-              Dicitura legale completa (28 mag 2026): ragione sociale +
-              P.IVA + sede su 2 righe. */}
-          <div>{t("app.footer.copyright", { year: new Date().getFullYear() })}</div>
-          <div>{t("app.footer.legalAddress")}</div>
-        </div>
       </div>
+
+      {/* Bottom: dicitura legale aziendale (28 mag 2026 — feedback UX Enrico:
+          spostata dalla colonna DX a una fascia centrata in fondo, peach con
+          /50 opacity, allineata al pattern di hub/winelist/experience). */}
+      <p className="text-[11px] text-brand-peach/50 text-center leading-relaxed pb-6 px-6">
+        {t("app.footer.copyright", { year: new Date().getFullYear() })}
+        <br />
+        {t("app.footer.legalAddress")}
+      </p>
     </footer>
   );
 }

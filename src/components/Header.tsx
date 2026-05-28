@@ -109,6 +109,20 @@ export default function Header({
                 <Mail size={16} className="text-brand-peach" />
                 <span>{t("app.dropdown.contact")}</span>
               </DropdownMenu.Item>
+              {/* Crosslink al hub principale (28 mag 2026, feedback UX Enrico):
+                  apre ambrosiavino.com in nuova tab — coerente con il pattern
+                  navbar di winelist + experience. */}
+              <DropdownMenu.Item asChild>
+                <a
+                  href="https://ambrosiavino.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg outline-none cursor-pointer transition-colors"
+                >
+                  <img src="/logo-a.svg" alt="" className="w-4 h-4 shrink-0" />
+                  <span>Ambrosiavino</span>
+                </a>
+              </DropdownMenu.Item>
               <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
               {auth.user ? (
                 <>
