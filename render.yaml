@@ -54,3 +54,17 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Email transazionali (Resend) — login verify, password reset, ecc.
+      # Se mancanti, server NON fallisce ma cade su dev-fallback (token via
+      # console.log) → email NON inviate. Vedi audit security 28 mag 2026.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      # Cloudflare Turnstile (captcha anti-bot) su register/forgot/reset.
+      # Se mancanti, server NON fallisce ma SALTA la verifica captcha →
+      # endpoint sensibili aperti ai bot. Vedi audit security 28 mag 2026.
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false

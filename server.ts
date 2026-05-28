@@ -229,6 +229,17 @@ async function startServer() {
     });
   });
 
+  // SESSION_SECRET: in produzione DEVE essere presente. Se manca (cold boot
+  // su Render con env dimenticate in dashboard), fail-fast invece di firmare
+  // i cookie con 'cambia-questo' = secret pubblico nel codice → session takeover.
+  // Decisione 28 mag 2026 (audit security).
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret === 'cambia-questo')) {
+    throw new Error(
+      "[FATAL] SESSION_SECRET non settato (o ancora al default 'cambia-questo') in produzione. " +
+      "Setta la env nella dashboard del provider prima di avviare il server."
+    );
+  }
   const PgStore = connectPg(session);
   app.use(
     session({
@@ -237,7 +248,7 @@ async function startServer() {
         tableName: 'sessions',
         createTableIfMissing: false,
       }),
-      secret: process.env.SESSION_SECRET || 'cambia-questo',
+      secret: sessionSecret || 'cambia-questo',
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -893,7 +904,9 @@ async function startServer() {
   // guest). Risponde sempre 200; can_start_free=true se nessun upload
   // completato finora (incluso il caso "nessuna sessione" — visitatore nuovo).
   // I platform admin saltano sempre il paywall (admin_bypass:true).
-  app.get('/api/uploads/quota', async (req, res) => {
+  // requireSession aggiunto 28 mag 2026 (audit security): bloccava
+  // enumeration anonima della quota globale.
+  app.get('/api/uploads/quota', requireSession, async (req, res) => {
     try {
       const rid = sessionRestaurantId(req);
       if (!rid) {
@@ -970,7 +983,10 @@ async function startServer() {
   // GET /api/ai-cache/:hash?type=menu|drinks — lookup cache.
   // Risponde 200 con { hit: true, result, model } su hit (e incrementa
   // hit_count + last_hit_at), 200 con { hit: false } su miss.
-  app.get('/api/ai-cache/:hash', async (req, res) => {
+  // requireSession aggiunto 28 mag 2026 (audit security): la cache è
+  // condivisa cross-restaurant per design (-70% chiamate AI su duplicati),
+  // ma l'accesso resta gated per evitare oracle anonimo "questo file esiste?".
+  app.get('/api/ai-cache/:hash', requireSession, async (req, res) => {
     try {
       const hash = String(req.params.hash || '').toLowerCase();
       const uploadType = String(req.query.type || '');
@@ -1003,7 +1019,11 @@ async function startServer() {
   // Body: { hash, uploadType, result, model? }. Upsert: se la riga esiste
   // gia' (race su upload concorrenti) non sovrascrive. result deve essere
   // { dishes: [...], drinks: [...] } (l'output di extractMenuData).
-  app.post('/api/ai-cache', async (req, res) => {
+  // requireSession aggiunto 28 mag 2026 (audit security): senza, chiunque
+  // poteva avvelenare la cache scrivendo un payload arbitrario per un hash
+  // qualsiasi → vittime che caricano lo stesso file ricevono dati ostili.
+  // Scoping per restaurantId su tabella = phase 2 (richiede migrazione).
+  app.post('/api/ai-cache', requireSession, async (req, res) => {
     try {
       const hash = String(req.body?.hash || '').toLowerCase();
       const uploadType = String(req.body?.uploadType || '');
@@ -1331,7 +1351,7 @@ async function startServer() {
     return messages;
   }
 
-  app.post('/api/gemini/generate', aiLimiter, async (req, res) => {
+  app.post('/api/gemini/generate', requireSession, aiLimiter, async (req, res) => {
     const { model, contents, config } = req.body;
     const API_KEY = aiKey('gemini');
     if (!API_KEY) {
@@ -1408,7 +1428,7 @@ async function startServer() {
   // ====================================================================
   // AI proxies (preservati dal server.ts originale)
   // ====================================================================
-  app.post('/api/vision/ocr', aiLimiter, async (req, res) => {
+  app.post('/api/vision/ocr', requireSession, aiLimiter, async (req, res) => {
     const { image } = req.body;
     const API_KEY = process.env.GOOGLE_CLOUD_VISION_API_KEY;
     if (!API_KEY) {
@@ -1449,7 +1469,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/openai/extract', aiLimiter, async (req, res) => {
+  app.post('/api/openai/extract', requireSession, aiLimiter, async (req, res) => {
     const { prompt, data, image } = req.body;
     const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -1490,7 +1510,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/openai/list-items', aiLimiter, async (req, res) => {
+  app.post('/api/openai/list-items', requireSession, aiLimiter, async (req, res) => {
     const { prompt, data, image } = req.body;
     const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -1532,7 +1552,7 @@ async function startServer() {
   });
 
   // --- OpenAI Native Menu Scan (fallback quando Gemini esaurisce quota) ---
-  app.post('/api/openai/menu-scan', aiLimiter, async (req, res) => {
+  app.post('/api/openai/menu-scan', requireSession, aiLimiter, async (req, res) => {
     const { text, images, allowPizzas } = req.body;
     const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -1600,7 +1620,7 @@ async function startServer() {
   });
 
   // --- OpenAI Native Batch Extract (fallback quando Gemini esaurisce quota) ---
-  app.post('/api/openai/menu-extract', aiLimiter, async (req, res) => {
+  app.post('/api/openai/menu-extract', requireSession, aiLimiter, async (req, res) => {
     const { text, images, itemNames, type } = req.body;
     const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -1657,7 +1677,7 @@ async function startServer() {
   });
 
   // --- OpenAI Native Pairings (fallback quando Gemini esaurisce quota) ---
-  app.post('/api/openai/pairings', aiLimiter, async (req, res) => {
+  app.post('/api/openai/pairings', requireSession, aiLimiter, async (req, res) => {
     const { restaurantInfo, dishes, drinks: drinksList } = req.body;
     const API_KEY = aiKey('openai');
     if (!API_KEY) return res.status(500).json({ error: tError(getLang(req), 'missingOpenAIKey') });
@@ -1783,7 +1803,7 @@ async function startServer() {
     return JSON.parse(jsonStr);
   }
 
-  app.post('/api/anthropic/menu-scan', aiLimiter, async (req, res) => {
+  app.post('/api/anthropic/menu-scan', requireSession, aiLimiter, async (req, res) => {
     const { text, images, allowPizzas } = req.body;
     const API_KEY = aiKey('anthropic');
     if (!API_KEY) return res.status(500).json({ error: 'Chiave AI non configurata (ANTHROPIC_API_KEY o OPENROUTER_API_KEY)' });
@@ -1820,7 +1840,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/anthropic/menu-extract', aiLimiter, async (req, res) => {
+  app.post('/api/anthropic/menu-extract', requireSession, aiLimiter, async (req, res) => {
     const { text, images, itemNames, type } = req.body;
     const API_KEY = aiKey('anthropic');
     if (!API_KEY) return res.status(500).json({ error: 'Chiave AI non configurata (ANTHROPIC_API_KEY o OPENROUTER_API_KEY)' });
@@ -1880,7 +1900,11 @@ async function startServer() {
   // ====================================================================
   // Vite middleware (frontend SPA)
   // ====================================================================
-  if (process.env.NODE_ENV !== 'production') {
+  // Gate stretto: 'development' invece di '!= production'. Se per errore
+  // NODE_ENV è vuoto o "staging" su Render, il server NON deve avviare
+  // un Vite dev full (che esporrebbe sorgenti + HMR in produzione).
+  // Decisione 28 mag 2026 (audit security).
+  if (process.env.NODE_ENV === 'development') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

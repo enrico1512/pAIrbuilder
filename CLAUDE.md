@@ -33,17 +33,19 @@ In sviluppo attivo. Modalità ospite funziona; sistema di login presente lato ba
 ## Architettura a 4 ambienti
 
 ```
-TUO PC (dev)  ──push──>  GITHUB  ──pull──>  REPLIT (produzione)
-     │                                            │
-     └────────── NEON DB (condiviso) ─────────────┘
+TUO PC (dev)  ──push──>  GITHUB  ──autodeploy──>  RENDER (produzione)
+     │                                                  │
+     └────────────── NEON DB (condiviso) ──────────────┘
 ```
 
 - **PC** = officina di sviluppo. Tutte le modifiche partono da qui.
 - **GitHub** (`enrico1512/pAIrbuilder`) = source of truth.
-- **Replit** = "vetrina" pubblica. Si aggiorna via `git pull`.
+- **Render** = "vetrina" pubblica. Auto-deploy a ogni push su `main` (vedi `render.yaml`). Custom domain: `pairbuilder.ambrosiavino.com` (CNAME → `pairbuilder.onrender.com`).
 - **Neon** = unico database condiviso. Modifiche ai dati sono istantanee per entrambi gli ambienti.
 
-**Regola operativa fondamentale**: un solo strumento AI alla volta tocca il codice. Se Enrico ha aperto Replit Agent in parallelo, fermati e chiedigli di chiuderlo prima di procedere.
+**Storico:** in passato il deploy era su Replit (vedi sezione "Storia del progetto"). Migrazione a Render completata; il file `.replit` rimosso il 28 mag 2026 per evitare confusione.
+
+**Regola operativa fondamentale**: un solo strumento AI alla volta tocca il codice. Se Enrico ha aperto altri agenti AI (Cowork, Replit Agent legacy, ecc.) in parallelo, fermati e chiedigli di chiuderli prima di procedere.
 
 ## Struttura del repository
 
@@ -68,7 +70,7 @@ Pairbuilder/
 ├── drizzle.config.ts         Config drizzle-kit
 ├── package.json
 ├── .env.example              Variabili da configurare in .env
-└── .replit                   Config Replit
+└── render.yaml               Blueprint deploy Render (envVars + build/start)
 ```
 
 ## Schema database (11 tabelle)
@@ -112,7 +114,7 @@ Pairbuilder/
 
 ## Variabili d'ambiente
 
-Vedi `.env.example`. In locale stanno in `.env`; su Replit nei Secrets.
+Vedi `.env.example`. In locale stanno in `.env`; in produzione nella dashboard Render (Environment → Add Environment Variable). Le `sync: false` di `render.yaml` mostrano subito quali sono richieste.
 
 - `DATABASE_URL` — connection string Neon (obbligatoria)
 - `SESSION_SECRET` — stringa lunga casuale (obbligatoria)
@@ -120,8 +122,8 @@ Vedi `.env.example`. In locale stanno in `.env`; su Replit nei Secrets.
 - `OPENROUTER_API_KEY` — chiave gateway aziendale BIBI Srl. Se settata, copre tutti e 3 i provider AI (Anthropic, OpenAI, Gemini) via OpenRouter. È il modo consigliato in produzione.
 - `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` — chiavi dirette per provider singolo (usate SOLO se `OPENROUTER_API_KEY` non è settata, es. dev locale con account personali).
 - `GOOGLE_CLOUD_VISION_API_KEY` — opzionale, OCR avanzato
-- `PORT` — default 3000 locale, iniettato da Replit in produzione
-- `APP_URL` — vuoto in locale, iniettato da Replit
+- `PORT` — default 3000 locale, iniettato da Render in produzione
+- `APP_URL` — vuoto in locale, settato in dashboard Render (es. `https://pairbuilder.ambrosiavino.com`)
 - `NODE_ENV`, `DISABLE_HMR` — flag di sviluppo
 
 ## Comandi frequenti
@@ -144,7 +146,7 @@ tsx scripts/apply-sql.ts <file>   # esegue uno script SQL arbitrario
 
 # Git / deploy
 git add . && git commit -m "..."
-git push origin main      # poi su Replit Shell: git pull origin main
+git push origin main      # Render fa auto-deploy in 1-3 min (vedi dashboard)
 ```
 
 ## Account nel DB
@@ -167,7 +169,7 @@ Per elencare gli utenti DB in qualsiasi momento: `tsx scripts/check-admins.ts`.
 
 - **Mai** mettere chiavi API nel frontend. Tutte le chiamate AI passano per proxy server (`/api/gemini/*`, `/api/openai/*`).
 - **Mai** leggere/scrivere dati di un ristorante senza passare per il middleware `requireAuth` che inietta `req.user.restaurantId`.
-- Per le porte usare sempre `Number(process.env.PORT) || 3000`, mai hardcoded — su Replit la porta è dinamica.
+- Per le porte usare sempre `Number(process.env.PORT) || 3000`, mai hardcoded — su Render la porta è iniettata dinamicamente.
 - File di log/debug: stampare su `console.log` con prefisso `[Nome modulo]` (es. `[Gemini Proxy]`).
 - Migrations: usare `drizzle-kit generate` quando si modifica `schema.ts`, non scrivere SQL a mano in `schema.sql`.
 
@@ -178,8 +180,8 @@ Per elencare gli utenti DB in qualsiasi momento: `tsx scripts/check-admins.ts`.
 3. Claude Code implementa in locale, testa con `npm run dev` su `localhost:3000`
 4. Verifica con `curl` o nel browser
 5. Commit + push su GitHub
-6. Su Replit Shell: `git pull origin main && npm install && Ctrl+C il server e relancia npm run dev`
-7. Verifica produzione
+6. `git push origin main` → Render auto-deploy (1-3 min). Logs visibili in dashboard.
+7. Verifica produzione su `https://pairbuilder.ambrosiavino.com` (o l'URL Render diretto se DNS in propagazione).
 
 ## Cose da NON fare
 
@@ -188,7 +190,7 @@ Per elencare gli utenti DB in qualsiasi momento: `tsx scripts/check-admins.ts`.
 - ❌ `DROP TABLE` o `TRUNCATE` su tabelle con dati reali (sempre seed/demo prima)
 - ❌ Sovrascrivere `.env` con valori vuoti
 - ❌ Committare `.env` (deve restare in `.gitignore`)
-- ❌ Modificare codice in parallelo da PC e da Replit Agent (causa divergenze pagate care)
+- ❌ Modificare codice in parallelo da PC e da altri agenti AI sullo stesso repo (causa divergenze pagate care)
 - ❌ Esporre chiavi API nel bundle frontend
 
 ## Storia del progetto (per contesto)
@@ -197,3 +199,4 @@ Per elencare gli utenti DB in qualsiasi momento: `tsx scripts/check-admins.ts`.
 - Sviluppato in parallelo con Replit Agent (UI/proxy AI) e Claude Code (auth/DB)
 - I due rami unificati in un merge complesso il 18 maggio 2026 (commit `ea8c2c3`)
 - Da allora: una sola fonte (PC con Claude Code), Replit solo per il deploy
+- **28 mag 2026:** migrazione deploy Replit → Render completata. `render.yaml` blueprint, auto-deploy on push, custom domain `pairbuilder.ambrosiavino.com`. File `.replit` rimosso dal repo.
