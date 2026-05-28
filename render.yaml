@@ -8,7 +8,10 @@ services:
   - type: web
     name: pairbuilder
     runtime: node
-    plan: free                # piano gratuito (sostituibile con "starter" a 7$/mese se si vuole evitare lo sleep)
+    plan: starter             # 7$/mese, no sleep, 512MB RAM, 0.5 CPU. Upgrade da "free" deciso 28/05/2026
+                              # per evitare cold-start 30-50s sul primo onboarding ristoratore.
+                              # NB: Render Blueprint NON cambia il piano di un servizio gia' creato:
+                              # l'upgrade va eseguito anche in dashboard (Settings -> Instance Type).
     region: frankfurt         # data center più vicino all'Italia
     branch: main              # deploy automatico a ogni push su main
     autoDeploy: true
