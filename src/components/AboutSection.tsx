@@ -147,10 +147,14 @@ function HowItWorksContent() {
             href="https://www.ambrosiavino.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary flex items-center gap-3 px-10 py-5 text-lg group"
+            /* Fix 28 mag 2026 (UX Enrico): rimossa <img logo-a.svg> accanto al
+               testo. Causava 2 problemi: (1) testo non centrato a causa del
+               gap-3 + flex row, (2) l'icona peach sullo sfondo peach del
+               btn-primary risultava poco visibile ("nascosta"). Ora solo
+               testo centrato con inline-flex + justify-center. */
+            className="btn-primary inline-flex justify-center px-10 py-5 text-lg"
           >
             {t('about.howItWorks.cta.button')}
-            <img src="/logo-a.svg" alt="" className="w-6 h-6 group-hover:rotate-12 transition-transform" />
           </a>
           <p className="text-xs uppercase tracking-widest opacity-40 font-bold">{t('about.howItWorks.cta.tagline')}</p>
         </div>
