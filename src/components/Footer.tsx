@@ -6,8 +6,12 @@ import { CheckCircle2 } from "lucide-react";
  *
  * Design system §4.2 (variante minimal app-style):
  *   - bg-brand-violet-dark (più scuro per distinguersi dall'header)
- *   - Grid 3-col: status AI engine SX | "BEVI DA DIO" centrale (Vina Sans peach) | copyright DX
- *   - Niente lockup grande, niente link legali, niente lang toggle
+ *   - Grid 3-col: status AI engine SX | "BEVI DA DIO" centrale (Vina Sans peach) | copyright + legali DX
+ *   - Niente lockup grande, niente lang toggle
+ *
+ * Link legali (privacy + termini) puntano all'hub ambrosiavino.com che è
+ * la fonte unica di verità dei testi legali dell'ecosistema (decisione
+ * 2026-05-28: niente duplicazione dei documenti GDPR tra i 4 sottodomini).
  *
  * "BEVI DA DIO" centrale segue il trattamento del lockup ecosistema
  * (Vina Sans, text-brand-peach, tracking-tight).
@@ -24,7 +28,17 @@ export interface FooterProps {
 }
 
 export default function Footer({ configStatus }: FooterProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // Lingua corrente i18next → URL legali coerenti hub
+  // (it: /privacy + /termini, en: /en/privacy + /en/terms)
+  const isItalian = i18n.language?.toLowerCase().startsWith('it');
+  const privacyUrl = isItalian
+    ? 'https://ambrosiavino.com/privacy'
+    : 'https://ambrosiavino.com/en/privacy';
+  const termsUrl = isItalian
+    ? 'https://ambrosiavino.com/termini'
+    : 'https://ambrosiavino.com/en/terms';
 
   return (
     <footer className="py-6 px-6 md:px-10 border-t border-white/10 grid grid-cols-3 items-center bg-brand-violet-dark">
@@ -56,9 +70,32 @@ export default function Footer({ configStatus }: FooterProps) {
         </p>
       </div>
 
-      {/* DX: copyright */}
-      <div className="text-[10px] opacity-40 uppercase tracking-widest text-right">
-        {t("app.footer.copyright")}
+      {/* DX: legali + copyright */}
+      <div className="text-[10px] uppercase tracking-widest text-right flex flex-col items-end gap-1">
+        <div className="flex gap-3 opacity-60">
+          <a
+            href={privacyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-brand-peach hover:opacity-100 transition-colors"
+          >
+            {t("app.footer.privacy")}
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href={termsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-brand-peach hover:opacity-100 transition-colors"
+          >
+            {t("app.footer.terms")}
+          </a>
+        </div>
+        <div className="opacity-40">
+          {/* Anno dinamico (decisione 2026-05-28): evita di hardcodare il year e
+              dover ricordarsi di bumparlo a fine dicembre. */}
+          {t("app.footer.copyright", { year: new Date().getFullYear() })}
+        </div>
       </div>
     </footer>
   );

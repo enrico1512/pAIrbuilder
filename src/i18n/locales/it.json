@@ -208,7 +208,9 @@
       "aiEngine": "AI Engine Active v3.2",
       "aiModeLabel": "AI Mode: {{status}}",
       "tagline": "bevi da Dio",
-      "copyright": "© 2024 pAIrbuilder"
+      "copyright": "© {{year}} pAIrbuilder",
+      "privacy": "Privacy",
+      "terms": "Termini"
     },
     "errors": {
       "extractionFailed": "C'e stato un errore nell'estrazione dei dati. Riprova.",

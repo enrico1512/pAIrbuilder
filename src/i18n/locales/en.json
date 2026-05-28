@@ -208,7 +208,9 @@
       "aiEngine": "AI Engine Active v3.2",
       "aiModeLabel": "AI Mode: {{status}}",
       "tagline": "drink like a god",
-      "copyright": "© 2024 pAIrbuilder"
+      "copyright": "© {{year}} pAIrbuilder",
+      "privacy": "Privacy",
+      "terms": "Terms"
     },
     "errors": {
       "extractionFailed": "Something went wrong while extracting the data. Please try again.",
