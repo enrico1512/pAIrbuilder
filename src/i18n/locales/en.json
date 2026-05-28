@@ -208,9 +208,10 @@
       "aiEngine": "AI Engine Active v3.2",
       "aiModeLabel": "AI Mode: {{status}}",
       "tagline": "drink like a god",
-      "copyright": "© {{year}} pAIrbuilder",
+      "copyright": "© {{year}} Ambrosia Vino — powered by Bibi SRL",
+      "legalAddress": "P.IVA 04574260248 · Vicenza, Italy",
       "privacy": "Privacy",
-      "terms": "Terms"
+      "terms": "Legal notice"
     },
     "errors": {
       "extractionFailed": "Something went wrong while extracting the data. Please try again.",

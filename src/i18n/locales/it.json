@@ -208,9 +208,10 @@
       "aiEngine": "AI Engine Active v3.2",
       "aiModeLabel": "AI Mode: {{status}}",
       "tagline": "bevi da Dio",
-      "copyright": "© {{year}} pAIrbuilder",
+      "copyright": "© {{year}} Ambrosia Vino — powered by Bibi SRL",
+      "legalAddress": "P.IVA 04574260248 · Vicenza, Italy",
       "privacy": "Privacy",
-      "terms": "Termini"
+      "terms": "Note legali"
     },
     "errors": {
       "extractionFailed": "C'e stato un errore nell'estrazione dei dati. Riprova.",

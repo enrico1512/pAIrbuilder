@@ -91,10 +91,13 @@ export default function Footer({ configStatus }: FooterProps) {
             {t("app.footer.terms")}
           </a>
         </div>
-        <div className="opacity-40">
+        <div className="opacity-40 leading-relaxed">
           {/* Anno dinamico (decisione 2026-05-28): evita di hardcodare il year e
-              dover ricordarsi di bumparlo a fine dicembre. */}
-          {t("app.footer.copyright", { year: new Date().getFullYear() })}
+              dover ricordarsi di bumparlo a fine dicembre.
+              Dicitura legale completa (28 mag 2026): ragione sociale +
+              P.IVA + sede su 2 righe. */}
+          <div>{t("app.footer.copyright", { year: new Date().getFullYear() })}</div>
+          <div>{t("app.footer.legalAddress")}</div>
         </div>
       </div>
     </footer>
