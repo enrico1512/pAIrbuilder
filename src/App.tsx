@@ -650,17 +650,20 @@ export default function App() {
                 key="welcome"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="h-full flex flex-col items-center justify-center text-center space-y-8 py-12"
+                /* min-h-full + justify-start su mobile: contenuto inizia dal top
+                   (era 'h-full justify-center' → titolo+CTA spinti sopra il fold
+                   perché contenuto totale > viewport mobile). lg+ torna centrato. */
+                className="min-h-full flex flex-col items-center justify-start lg:justify-center text-center space-y-8 py-8 lg:py-12"
               >
                 <div className="space-y-4 max-w-3xl">
-                  <h2 className="text-7xl lg:text-9xl leading-[0.8] mb-4 uppercase font-display text-brand-peach font-normal tracking-tight">
+                  <h2 className="text-5xl sm:text-6xl lg:text-9xl leading-[0.8] mb-4 uppercase font-display text-brand-peach font-normal tracking-tight">
                     p<span className="text-white">AI</span>rbuilder
                   </h2>
-                  <p className="text-xl text-white font-light max-w-xl mx-auto">
+                  <p className="text-base sm:text-lg lg:text-xl text-white font-light max-w-xl mx-auto">
                     {t('app.welcome.tagline')}
                   </p>
                 </div>
-                <button onClick={handleStart} className="btn-primary text-2xl px-12 py-4 mt-8">
+                <button onClick={handleStart} className="btn-primary text-lg sm:text-xl lg:text-2xl px-8 sm:px-12 py-3 sm:py-4 mt-6 lg:mt-8">
                   {t('app.welcome.cta')}
                 </button>
 

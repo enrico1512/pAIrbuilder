@@ -42,7 +42,9 @@
   }
 }
 
-.glass-panel {
+/* @utility (non `.class { @apply ...}`) — Tailwind 4 richiede @utility per
+   poter usare `@apply glass-panel` da altre classi (vedi .btn-secondary). */
+@utility glass-panel {
   @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl;
 }
 
