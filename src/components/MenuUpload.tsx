@@ -128,7 +128,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
             <input
               type="file"
               multiple
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx"
               onChange={(e) => handleFileChange(e, 'menu')}
               className="absolute inset-0 opacity-0 cursor-pointer z-10"
               title={t('upload.menu.inputTitle')}
@@ -162,7 +162,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
                   <input
                     type="file"
                     multiple
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx"
                     onChange={(e) => handleFileChange(e, 'menu')}
                     className="w-0.5 h-0.5 opacity-0.1"
                   />
@@ -228,7 +228,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
             <input
               type="file"
               multiple
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx"
               onChange={(e) => handleFileChange(e, 'drinks')}
               className="absolute inset-0 opacity-0 cursor-pointer z-10"
               title={t('upload.drinks.inputTitle')}
@@ -262,7 +262,7 @@ export default function MenuUpload({ onBack, onNext }: MenuUploadProps) {
                   <input
                     type="file"
                     multiple
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx"
                     onChange={(e) => handleFileChange(e, 'drinks')}
                     className="w-0.5 h-0.5 opacity-0.1"
                   />

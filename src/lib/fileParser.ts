@@ -166,3 +166,56 @@ export async function parseWord(file: File): Promise<string> {
     throw new Error("Impossibile leggere il file Word.");
   }
 }
+
+/**
+ * Extracts text from a PowerPoint .pptx file.
+ *
+ * PPTX = ZIP che contiene `ppt/slides/slideN.xml` per ogni slide. Ogni slide ha
+ * elementi `<a:t>...testo...</a:t>` con il testo dei placeholder/text frames.
+ * Uso JSZip + DOMParser (browser-native) per estrarre tutto il testo nello
+ * stesso formato delle altre funzioni parse* (string lineare).
+ *
+ * NOTA: il formato .ppt legacy (PowerPoint 97-2003, binario) NON è supportato —
+ * solo .pptx (Office Open XML). Se l'utente carica un .ppt, parseFile fallirà
+ * con errore esplicito.
+ */
+export async function parsePPTX(file: File): Promise<string> {
+  try {
+    const { default: JSZip } = await import('jszip');
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const slidePaths = Object.keys(zip.files)
+      .filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))
+      .sort((a, b) => {
+        const na = parseInt(a.match(/slide(\d+)\.xml$/)?.[1] || '0', 10);
+        const nb = parseInt(b.match(/slide(\d+)\.xml$/)?.[1] || '0', 10);
+        return na - nb;
+      });
+
+    if (slidePaths.length === 0) {
+      throw new Error("Nessuna slide trovata nel file .pptx");
+    }
+
+    const parser = new DOMParser();
+    let text = '';
+    for (const path of slidePaths) {
+      const slideNum = parseInt(path.match(/slide(\d+)\.xml$/)?.[1] || '0', 10);
+      const xmlStr = await zip.files[path].async('string');
+      const xml = parser.parseFromString(xmlStr, 'text/xml');
+      // <a:t> = text run dentro le shape PPT
+      const runs = xml.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/main', 't');
+      const slideText: string[] = [];
+      for (let i = 0; i < runs.length; i++) {
+        const t = runs[i].textContent?.trim();
+        if (t) slideText.push(t);
+      }
+      if (slideText.length > 0) {
+        text += `--- SLIDE ${slideNum} ---\n${slideText.join(' ')}\n\n`;
+      }
+    }
+    return text;
+  } catch (err) {
+    console.error("PPTX parsing error:", err);
+    throw new Error("Impossibile leggere il file PowerPoint (.pptx). Il formato .ppt legacy non è supportato — convertilo in .pptx.");
+  }
+}

@@ -17,7 +17,7 @@ import { toBcp47, currencyFor } from "./i18n/languageMap";
 
 const AUTH_DISMISS_KEY = "pairbuilder.authDismissed";
 import { generatePairings, extractMenuData, listItemNames, isWineCategory, isPizzaCategory, type Pairing, type Dish, type Drink } from "./lib/gemini";
-import { parseExcel, parseWord, parsePDFDetailed } from "./lib/fileParser";
+import { parseExcel, parseWord, parsePDFDetailed, parsePPTX } from "./lib/fileParser";
 import { learningService } from "./lib/learningService";
 import { sha256File, lookupCache, saveCache } from "./lib/aiCache";
 
@@ -347,6 +347,10 @@ export default function App() {
             textContent = await parseWord(f);
           } else if (f.name.endsWith(".xlsx") || f.name.endsWith(".xls") || f.name.endsWith(".csv")) {
             textContent = await parseExcel(f);
+          } else if (f.name.toLowerCase().endsWith(".pptx") || f.name.toLowerCase().endsWith(".ppt")) {
+            // PowerPoint: solo .pptx parsabile (ZIP + XML); .ppt legacy fallisce
+            // con messaggio chiaro. Aggiunto 28 mag 2026 su richiesta Enrico.
+            textContent = await parsePPTX(f);
           }
 
           const baseData = {
@@ -357,18 +361,18 @@ export default function App() {
           };
 
           const scan = await listItemNames(baseData);
-          
+
           const foundDishes = scan.dishes?.length || 0;
           const foundDrinks = scan.drinks?.length || 0;
           setCurrentScanningCounts({ dishes: foundDishes, drinks: foundDrinks });
-          
+
           const totalItemsOnPage = foundDishes + foundDrinks;
-          
+
           setExtractionMode("extracting");
-          
+
           const result = await extractMenuData(
-            [baseData], 
-            [], 
+            [baseData],
+            [],
             totalItemsOnPage > 0 ? scan : undefined,
             (extractedDishes, extractedDrinks) => {
               if (extractedDishes > 0 || extractedDrinks > 0) {
@@ -427,6 +431,10 @@ export default function App() {
           textContent = await parseWord(f);
         } else if (f.name.endsWith(".xlsx") || f.name.endsWith(".xls") || f.name.endsWith(".csv")) {
           textContent = await parseExcel(f);
+        } else if (f.name.toLowerCase().endsWith(".pptx") || f.name.toLowerCase().endsWith(".ppt")) {
+          // PowerPoint: solo .pptx parsabile (ZIP + XML); .ppt legacy fallisce
+          // con messaggio chiaro. Aggiunto 28 mag 2026 su richiesta Enrico.
+          textContent = await parsePPTX(f);
         }
 
         const baseData = {
@@ -437,7 +445,7 @@ export default function App() {
         };
 
         const scan = await listItemNames(baseData);
-        
+
         const foundDishes = scan.dishes?.length || 0;
         const foundDrinks = scan.drinks?.length || 0;
         setCurrentScanningCounts({ dishes: foundDishes, drinks: foundDrinks });
@@ -908,10 +916,19 @@ export default function App() {
               </motion.section>
             )}
           </AnimatePresence>
+
+          {/* Footer scroll-end (decisione 28 mag 2026):
+              spostato DENTRO al container scrollabile per essere visibile
+              SOLO quando l'utente raggiunge il fondo del contenuto, invece
+              di restare fisso sopra il viewport in ogni step (UX richiesta
+              da Enrico).
+              Bleed -mx-6 md:-mx-10 per spanning full-width oltre il padding
+              orizzontale del wrapper. */}
+          <div className="-mx-6 md:-mx-10 mt-12">
+            <Footer configStatus={configStatus} />
+          </div>
         </div>
       </main>
-
-      <Footer configStatus={configStatus} />
 
       <AuthModal open={authModalOpen} onClose={handleAuthClose} initialTab={authModalTab} />
     </div>
