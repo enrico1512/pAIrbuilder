@@ -20,7 +20,8 @@ import { and, eq } from 'drizzle-orm';
 // l'endpoint openai-compatible (OpenAI diretto o OpenRouter come
 // gateway). Il payload Gemini-style viene convertito in messages
 // openai-style nel proxy /api/gemini/generate.
-import * as XLSX from 'xlsx';
+// @e965/xlsx = fork patchato (vedi src/lib/fileParser.ts per dettagli CVE).
+import * as XLSX from '@e965/xlsx';
 import { db, pool } from './db/client';
 import { randomBytes, createHash } from 'crypto';
 import {

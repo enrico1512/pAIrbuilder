@@ -1,4 +1,7 @@
-import * as XLSX from 'xlsx';
+// @e965/xlsx = fork patchato di SheetJS community (xlsx@0.18.5 ha
+// CVE-2023-30533 Prototype Pollution + CVE-2024-22363 ReDoS non patched).
+// API identica, drop-in. Swap 28 mag 2026 (audit security).
+import * as XLSX from '@e965/xlsx';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 
