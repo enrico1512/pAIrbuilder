@@ -72,8 +72,13 @@ export default function Footer({ configStatus }: FooterProps) {
           </p>
         </div>
 
-        {/* DX: privacy + terms (solo legali, senza copyright/indirizzo) */}
-        <div className="text-[10px] uppercase tracking-widest text-right flex justify-end gap-3 opacity-60">
+        {/* DX: privacy + terms (solo legali, senza copyright/indirizzo).
+            Layout responsive (28 mag 2026, fix UX Enrico):
+            - mobile (<sm): colonna verticale (Privacy sopra, Note legali sotto,
+              separator · nascosto) — a 375px la riga orizzontale overflowava la
+              colonna di ~12px ("Legal notice" extendeva oltre il bordo).
+            - sm+: riga orizzontale con · separator come prima. */}
+        <div className="text-[10px] uppercase tracking-widest text-right flex flex-col sm:flex-row items-end sm:items-center sm:justify-end gap-1 sm:gap-3 opacity-60">
           <a
             href={privacyUrl}
             target="_blank"
@@ -82,7 +87,7 @@ export default function Footer({ configStatus }: FooterProps) {
           >
             {t("app.footer.privacy")}
           </a>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true" className="hidden sm:inline">·</span>
           <a
             href={termsUrl}
             target="_blank"
