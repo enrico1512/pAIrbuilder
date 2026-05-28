@@ -21,9 +21,20 @@ void i18n
     nonExplicitSupportedLngs: true,
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
+      // Ordine 28 mag 2026: cookie cross-subdomain ambrosia-lang ha priorità
+      // su localStorage. Il cookie è scritto da QUALSIASI sito Ambrosia
+      // (hub, winelist, experience, pAIrbuilder) → cambiare lingua su uno
+      // riflette ovunque alla prossima visita.
+      order: ['cookie', 'localStorage', 'navigator', 'htmlTag'],
+      lookupCookie: 'ambrosia-lang',
       lookupLocalStorage: 'pairbuilder.lang',
-      caches: ['localStorage'],
+      caches: ['cookie', 'localStorage'],
+      // Domain con leading dot = condiviso tra tutti i subdomain
+      // ambrosiavino.com. In locale (host non ambrosiavino) il browser
+      // ignora l'attribute e cookie resta sull'host corrente — innocuo.
+      cookieDomain: '.ambrosiavino.com',
+      cookieMinutes: 60 * 24 * 365, // 1 anno
+      cookieOptions: { path: '/', sameSite: 'lax' as const },
     },
     returnNull: false,
   });
