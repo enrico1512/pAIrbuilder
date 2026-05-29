@@ -11,18 +11,23 @@
          insieme a hub/winelist/experience per coerenza ecosistema). -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Open Graph -->
+    <!-- Open Graph — IMPORTANTE: og:image deve essere URL assoluto, i
+         scraper di WhatsApp/Facebook/Telegram non risolvono relative
+         URL e mostrano preview senza immagine (bug 29 mag 2026). -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pairbuilder.ambrosiavino.com/" />
     <meta property="og:title" content="pAIrbuilder · Ambrosia" />
     <meta property="og:description" content="Ambrosia - Tecnologie intelligenti per il vino" />
-    <meta property="og:image" content="/images/og-cover.png" />
+    <meta property="og:image" content="https://pairbuilder.ambrosiavino.com/images/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:locale" content="it_IT" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="pAIrbuilder · Ambrosia" />
     <meta name="twitter:description" content="Ambrosia - Tecnologie intelligenti per il vino" />
-    <meta name="twitter:image" content="/images/og-cover.png" />
+    <meta name="twitter:image" content="https://pairbuilder.ambrosiavino.com/images/og-cover.png" />
 
     <!-- Cookie banner shared cross-sottodominio (Ambrosia ecosystem)
          + Plausible Analytics opt-in. Served dal hub. -->
