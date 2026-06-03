@@ -796,6 +796,7 @@ async function startServer() {
 
   app.post('/api/dishes/bulk', requireSession, async (req, res) => {
     try {
+      if (await isDemoSession(req)) return res.json({ inserted: 0, demo: true });
       const rid = sessionRestaurantId(req)!;
       const list: Array<{ name?: string; category?: string; fullIngredients?: string; price?: string }> = Array.isArray(req.body?.dishes) ? req.body.dishes : [];
       if (list.length === 0) return res.json({ inserted: 0 });
@@ -819,6 +820,7 @@ async function startServer() {
 
   app.post('/api/drinks/bulk', requireSession, async (req, res) => {
     try {
+      if (await isDemoSession(req)) return res.json({ inserted: 0, demo: true });
       const rid = sessionRestaurantId(req)!;
       const list: Array<any> = Array.isArray(req.body?.drinks) ? req.body.drinks : [];
       if (list.length === 0) return res.json({ inserted: 0 });
@@ -847,6 +849,7 @@ async function startServer() {
 
   app.post('/api/pairings/bulk', requireSession, async (req, res) => {
     try {
+      if (await isDemoSession(req)) return res.json({ inserted: 0, demo: true });
       const rid = sessionRestaurantId(req)!;
       const list: Array<any> = Array.isArray(req.body?.pairings) ? req.body.pairings : [];
       const language: 'it' | 'en' = req.body?.language === 'en' ? 'en' : 'it';
@@ -914,6 +917,17 @@ async function startServer() {
     return rows.rows[0]?.is_platform_admin === true;
   }
 
+  // Account "demo": login e uso completo dell'app, ma nessuna scrittura di
+  // dati di dominio (piatti/drink/abbinamenti/upload_sessions). Servono come
+  // sandbox pubblica permanente senza sporcare il DB ad ogni prova.
+  const DEMO_USER_EMAILS = new Set(['test@ambrosiavino.com']);
+  async function isDemoSession(req: Request): Promise<boolean> {
+    if (!req.session.userId) return false;
+    const [u] = await db.select({ email: users.email })
+      .from(users).where(eq(users.id, req.session.userId)).limit(1);
+    return !!u && DEMO_USER_EMAILS.has(String(u.email).toLowerCase());
+  }
+
   // Contatore upload completati per il restaurant in sessione (loggato o
   // guest). Risponde sempre 200; can_start_free=true se nessun upload
   // completato finora (incluso il caso "nessuna sessione" — visitatore nuovo).
@@ -953,6 +967,9 @@ async function startServer() {
   // come "interni" via metadata.admin_bypass=true.
   app.post('/api/uploads/start', requireSession, async (req, res) => {
     try {
+      if (await isDemoSession(req)) {
+        return res.json({ upload_session_id: null, is_free: true, status: 'completed', amount_cents: 0, requires_payment: false, demo: true });
+      }
       const rid = sessionRestaurantId(req)!;
       const adminBypass = await isPlatformAdmin(req);
       const completed = await pool.query(
@@ -1248,10 +1265,10 @@ async function startServer() {
       try {
         const rid = req.session.restaurantId!;
         const { id, restaurantId, createdAt, updatedAt, ...payload } = req.body || {};
-        const [row] = await db
+        const [row] = await (db
           .insert(table)
           .values({ ...payload, restaurantId: rid })
-          .returning();
+          .returning() as Promise<any[]>);
         res.json(row);
       } catch (err: any) {
         res.status(500).json({ error: err?.message || tError(getLang(req), 'insertFailed') });
@@ -1262,11 +1279,11 @@ async function startServer() {
       try {
         const rid = req.session.restaurantId!;
         const { id, restaurantId, createdAt, ...payload } = req.body || {};
-        const [row] = await db
+        const [row] = await (db
           .update(table)
           .set(payload)
           .where(and(eq(table.id, req.params.id), eq(table.restaurantId, rid)))
-          .returning();
+          .returning() as Promise<any[]>);
         if (!row) return res.status(404).json({ error: tError(getLang(req), 'notFound') });
         res.json(row);
       } catch (err: any) {
@@ -1277,10 +1294,10 @@ async function startServer() {
     app.delete(`/api/${routeName}/:id`, requireAuth, async (req, res) => {
       try {
         const rid = req.session.restaurantId!;
-        const [row] = await db
+        const [row] = await (db
           .delete(table)
           .where(and(eq(table.id, req.params.id), eq(table.restaurantId, rid)))
-          .returning();
+          .returning() as Promise<any[]>);
         if (!row) return res.status(404).json({ error: tError(getLang(req), 'notFound') });
         res.json({ ok: true });
       } catch (err: any) {
