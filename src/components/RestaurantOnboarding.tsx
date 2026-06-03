@@ -72,9 +72,9 @@ export default function RestaurantOnboarding({ onNext, initialData }: Onboarding
       </div>
 
       <div className="flex flex-col items-center gap-4">
-        <div className="relative w-32 h-32 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border-2 border-white/20 group cursor-pointer">
+        <div className="relative w-32 h-32 rounded-2xl bg-white/10 flex items-center justify-center overflow-hidden border-2 border-white/20 group cursor-pointer">
           {logo ? (
-            <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+            <img src={logo} alt="Logo" className="w-full h-full object-contain p-3" />
           ) : (
             <Camera className="text-white/20 group-hover:text-brand-peach transition-colors" size={40} />
           )}
