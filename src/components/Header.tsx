@@ -46,20 +46,25 @@ export default function Header({
     setStep("about");
   };
 
+  // In modalità ospite non esiste un ristorante reale: mostrare un nome
+  // placeholder ("L'Osteria") sembrerebbe un dato vero, quindi nascondiamo
+  // del tutto il blocco finché non c'è un nome effettivo.
+  const restaurantName = restaurantData?.name || auth.restaurant?.name;
+
   return (
     <header className="grid grid-cols-3 items-center px-6 md:px-10 py-6 border-b border-white/10 z-10 bg-brand-violet/80 backdrop-blur-sm sticky top-0">
-      {/* SX: label ristorante (visibile da lg) */}
+      {/* SX: label ristorante (visibile da lg, solo se c'è un ristorante reale) */}
       <div className="flex items-center gap-4">
-        <div className="text-left hidden lg:block">
-          <p className="text-[10px] uppercase tracking-widest opacity-60">
-            {t("app.header.restaurantLabel")}
-          </p>
-          <p className="text-sm font-bold truncate max-w-[150px]">
-            {restaurantData?.name ||
-              auth.restaurant?.name ||
-              t("app.header.restaurantFallback")}
-          </p>
-        </div>
+        {restaurantName && (
+          <div className="text-left hidden lg:block">
+            <p className="text-[10px] uppercase tracking-widest opacity-60">
+              {t("app.header.restaurantLabel")}
+            </p>
+            <p className="text-sm font-bold truncate max-w-[150px]">
+              {restaurantName}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* CENTRO: riservato (oggi vuoto) */}

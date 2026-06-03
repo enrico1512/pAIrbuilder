@@ -510,7 +510,11 @@ async function startServer() {
    * disattivato). In prod va settata insieme a TURNSTILE_SITE_KEY.
    */
   async function verifyTurnstile(token: string | undefined | null, remoteIp?: string): Promise<boolean> {
-    const secret = process.env.TURNSTILE_SECRET_KEY;
+    // .trim() difensivo: un copia-incolla della secret in dashboard (Render)
+    // puo' portarsi dietro spazi o un "a capo" invisibile, che farebbero
+    // fallire la verifica con error 'invalid-input-secret' pur essendo la
+    // chiave "giusta". Vale anche per il token lato client.
+    const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
     if (!secret) {
       // dev: nessuna chiave → tutti passano. Logghiamo per chiarezza.
       console.log('[turnstile DEV] no TURNSTILE_SECRET_KEY, skipping captcha verification');
@@ -518,13 +522,22 @@ async function startServer() {
     }
     if (!token) return false;
     try {
-      const form = new URLSearchParams({ secret, response: token });
+      const form = new URLSearchParams({ secret, response: String(token).trim() });
       if (remoteIp) form.append('remoteip', remoteIp);
       const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
         method: 'POST',
         body: form,
       });
-      const data = (await r.json().catch(() => ({}))) as { success?: boolean };
+      const data: any = await r.json().catch(() => ({}));
+      if (!data.success) {
+        // Log diagnostico: Cloudflare restituisce il motivo esatto del rifiuto
+        // in 'error-codes' (es. 'invalid-input-secret' = secret errata,
+        // 'timeout-or-duplicate' = token scaduto/riusato, hostname mismatch).
+        console.warn('[turnstile] siteverify FAILED', {
+          errorCodes: data['error-codes'],
+          hostname: data.hostname,
+        });
+      }
       return !!data.success;
     } catch (err) {
       console.error('[turnstile] verify error:', err);
