@@ -31,6 +31,44 @@ export type RestaurantData = {
   logo: string | null;
 } | null;
 
+// POST JSON con riprova automatica. Usato per i salvataggi dati (dishes/drinks/
+// pairings/guest onboarding): se la rete fa i capricci o il server e' momenta-
+// neamente lento/occupato, riproviamo invece di perdere i dati in silenzio.
+// Riproviamo su errori di rete, 401 (sessione guest non ancora pronta), 429 e
+// 5xx. Sugli altri 4xx (richiesta malformata) ci fermiamo subito: riprovare non
+// servirebbe. Ritorna la Response se andata a buon fine, null se tutti i
+// tentativi falliscono.
+async function postJsonWithRetry(
+  url: string,
+  body: unknown,
+  { tries = 3, label = url }: { tries?: number; label?: string } = {},
+): Promise<Response | null> {
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return res;
+      // 4xx "definitivi" (richiesta sbagliata): inutile insistere.
+      if (res.status !== 401 && res.status !== 429 && res.status < 500) {
+        console.warn(`[persist] ${label}: HTTP ${res.status} (nessuna riprova)`);
+        return res;
+      }
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      lastErr = err;
+    }
+    if (attempt < tries) {
+      await new Promise((r) => setTimeout(r, 400 * attempt)); // backoff 400/800/1200ms
+    }
+  }
+  console.warn(`[persist] ${label}: fallito dopo ${tries} tentativi`, lastErr);
+  return null;
+}
+
 export default function App() {
   const { t, i18n } = useTranslation();
   const auth = useAuth();
@@ -38,6 +76,46 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('register');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Promessa "la sessione ristorante esiste sul server" (loggato o guest).
+  // Caching: la creazione del guest restaurant parte una sola volta; sia
+  // l'onboarding sia il salvataggio finale aspettano questa stessa promessa,
+  // così i POST /bulk non partono mai prima che il restaurant_id sia pronto.
+  const guestSessionRef = useRef<Promise<boolean> | null>(null);
+
+  // Garantisce che il server abbia un restaurant_id agganciato alla sessione
+  // PRIMA dei salvataggi /bulk (altrimenti rispondono 401 e i dati ospite si
+  // perdono in silenzio — il rischio principale per la raccolta dati).
+  // - Utente loggato: il restaurant_id e' gia' in sessione → ok immediato.
+  // - Ospite: crea (con riprova) il guest restaurant via /api/guest/onboarding.
+  //   L'endpoint e' idempotente: se la riga esiste gia' la riusa, quindi
+  //   chiamarlo piu' volte e' sicuro. In caso di fallimento totale azzera la
+  //   cache così un tentativo successivo (es. al confirm) riparte da capo.
+  const ensureGuestSession = (data?: RestaurantData): Promise<boolean> => {
+    if (auth.user) return Promise.resolve(true);
+    if (guestSessionRef.current) return guestSessionRef.current;
+    const src = data || restaurantData;
+    const lang = (i18n.resolvedLanguage || i18n.language || 'it').split('-')[0];
+    const p = (async () => {
+      const res = await postJsonWithRetry(
+        '/api/guest/onboarding',
+        {
+          name: src?.name,
+          type: src?.type,
+          email: src?.email,
+          phone: src?.phone,
+          preferredLanguage: lang,
+        },
+        { tries: 4, label: 'guest onboarding' },
+      );
+      if (!res || !res.ok) {
+        guestSessionRef.current = null; // permette un nuovo tentativo dopo
+        return false;
+      }
+      return true;
+    })();
+    guestSessionRef.current = p;
+    return p;
+  };
 
   // Auto-open auth popup on first visit: only if not logged in, only after
   // /api/auth/me has resolved (auth.loading=false), and only if the user
@@ -254,24 +332,15 @@ export default function App() {
   const handleRestaurantSubmit = (data: { name: string; type: string; email: string; phone: string; logo: string | null }) => {
     setRestaurantData(data);
     setStep("upload");
-    // Per sessioni ospite (non loggate), creiamo un guest restaurant sul
-    // server cosi' le chiamate /api/dishes|drinks|pairings/bulk successive
-    // hanno un restaurant_id a cui attaccarsi. Fire-and-forget — se fallisce
-    // l'UX continua normalmente (perdiamo solo l'analytics lato server).
+    // Per sessioni ospite (non loggate) avviamo SUBITO la creazione del guest
+    // restaurant sul server, così le chiamate /api/dishes|drinks|pairings/bulk
+    // successive hanno un restaurant_id a cui agganciarsi. Non blocca l'UX (la
+    // promessa viene attesa più tardi, al salvataggio), ma ora ha riprova
+    // automatica: prima era fire-and-forget e un singolo errore di rete faceva
+    // perdere TUTTI i dati di quell'ospite in silenzio.
     // Gli utenti loggati saltano: il loro restaurant_id e' gia' in sessione.
     if (!auth.user) {
-      const lang = (i18n.resolvedLanguage || i18n.language || 'it').split('-')[0];
-      void fetch('/api/guest/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name,
-          type: data.type,
-          email: data.email,
-          phone: data.phone,
-          preferredLanguage: lang,
-        }),
-      }).catch(err => console.warn('[guest onboarding] save failed (non-blocking):', err));
+      void ensureGuestSession(data);
     }
   };
 
@@ -523,22 +592,19 @@ export default function App() {
     // quindi attendiamo entrambi i POST PRIMA di generare i pairings, ma
     // non blocchiamo l'UI in caso di errore.
     const persistMenuPromise = (async () => {
-      try {
-        await Promise.all([
-          fetch('/api/dishes/bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dishes: allDishes }),
-          }),
-          fetch('/api/drinks/bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ drinks: allDrinks }),
-          }),
-        ]);
-      } catch (err) {
-        console.warn('[bulk save] menu/drinks save failed (non-blocking):', err);
+      // Prima di salvare, garantiamo che esista un restaurant_id in sessione
+      // (loggato o guest). Senza, gli endpoint /bulk rispondono 401 e i dati
+      // andrebbero persi: questa attesa + la riprova interna sono il cuore
+      // della robustezza per la raccolta dati ospite.
+      const ready = await ensureGuestSession();
+      if (!ready) {
+        console.warn('[persist] sessione ristorante non disponibile: salvataggio menu/drink saltato');
+        return;
       }
+      await Promise.all([
+        postJsonWithRetry('/api/dishes/bulk', { dishes: allDishes }, { label: 'dishes/bulk' }),
+        postJsonWithRetry('/api/drinks/bulk', { drinks: allDrinks }, { label: 'drinks/bulk' }),
+      ]);
     })();
 
     setStep("loading");
@@ -611,15 +677,15 @@ export default function App() {
             }))
           );
           if (pairingPayload.length > 0) {
-            void fetch('/api/pairings/bulk', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            await postJsonWithRetry(
+              '/api/pairings/bulk',
+              {
                 pairings: pairingPayload,
                 language: (i18n.resolvedLanguage || 'it').split('-')[0],
                 model: 'mixed',
-              }),
-            }).catch((err) => console.warn('[bulk save] pairings save failed (non-blocking):', err));
+              },
+              { label: 'pairings/bulk' },
+            );
           }
         } catch (err) {
           console.warn('[bulk save] pairings persist skipped:', err);
