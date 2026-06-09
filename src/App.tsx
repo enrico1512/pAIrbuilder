@@ -146,13 +146,30 @@ export default function App() {
     logo: auth.restaurant?.logoUrl || null,
   });
 
-  // Routing post-auth:
+  // Routing post-auth — scatta SOLO subito dopo un login/registrazione
+  // esplicito (transizione da non-autenticato ad autenticato a sessione
+  // gia' risolta):
   //  - da "paywall" → "upload" (l'onboarding ristorante era gia' stato fatto
   //    come guest e adottato dal register; oppure login profilo esistente).
-  //  - da "welcome" → "restaurant" (post register/login: il nome ristorante
-  //    c'e' gia' ma mancano tipo cucina/telefono/logo, da raccogliere qui).
+  //  - da "welcome" → "restaurant" (il nome ristorante c'e' gia' ma mancano
+  //    tipo cucina/telefono/logo, da raccogliere qui).
+  // NON deve scattare al ripristino della sessione al caricamento pagina ne'
+  // quando si torna alla welcome da loggati: in quei casi l'utente deve vedere
+  // la pagina iniziale con la descrizione, non saltare all'onboarding.
+  const initialAuthSettled = useRef(false);
+  const prevUserId = useRef<string | null>(null);
   useEffect(() => {
+    if (auth.loading) return;
+    const prev = prevUserId.current;
+    prevUserId.current = auth.user?.id ?? null;
+    if (!initialAuthSettled.current) {
+      // Prima risoluzione della sessione al caricamento: mai reindirizzare.
+      initialAuthSettled.current = true;
+      return;
+    }
     if (!auth.user) return;
+    // Gia' loggato da prima (es. ritorno alla welcome): non reindirizzare.
+    if (prev) return;
     if (step === "paywall") {
       setRestaurantData(restaurantDataFromAuth());
       setStep("upload");

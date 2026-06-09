@@ -42,10 +42,14 @@ export default function Footer({ configStatus }: FooterProps) {
 
   return (
     <footer className="border-t border-white/10 bg-brand-violet-dark">
-      {/* Top: status SX + BEVI DA DIO centro + privacy/terms DX */}
-      <div className="py-6 px-6 md:px-10 grid grid-cols-3 items-center">
+      {/* Top: status SX + BEVI DA DIO centro + privacy/terms DX.
+          Mobile (<md): colonna verticale centrata — a 3 colonne il tagline
+          "BEVI DA DIO" (whitespace-nowrap, text-3xl) sforava nelle colonne
+          laterali sovrapponendosi a status e legali (fix UX Enrico).
+          md+: torna grid a 3 colonne con allineamenti SX/centro/DX. */}
+      <div className="py-6 px-6 md:px-10 flex flex-col items-center gap-5 text-center md:grid md:grid-cols-3 md:items-center md:gap-0 md:text-left">
         {/* SX: status AI engine */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-center gap-1 md:items-start">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-ambrosia-teal rounded-full animate-pulse shadow-[0_0_8px_rgba(46,188,177,0.5)]"></span>
             <span className="text-[10px] uppercase tracking-widest opacity-70 hidden sm:inline">
@@ -58,7 +62,7 @@ export default function Footer({ configStatus }: FooterProps) {
               <span className="text-[9px] uppercase tracking-tighter opacity-50 whitespace-nowrap">
                 {t("app.footer.aiModeLabel", { status: configStatus.status })}
               </span>
-              <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mb-2 invisible group-hover:visible glass-panel p-2 text-[10px] w-64 z-50 pointer-events-none">
                 {configStatus.message}
               </div>
             </div>
@@ -72,13 +76,8 @@ export default function Footer({ configStatus }: FooterProps) {
           </p>
         </div>
 
-        {/* DX: privacy + terms (solo legali, senza copyright/indirizzo).
-            Layout responsive (28 mag 2026, fix UX Enrico):
-            - mobile (<sm): colonna verticale (Privacy sopra, Note legali sotto,
-              separator · nascosto) — a 375px la riga orizzontale overflowava la
-              colonna di ~12px ("Legal notice" extendeva oltre il bordo).
-            - sm+: riga orizzontale con · separator come prima. */}
-        <div className="text-[10px] uppercase tracking-widest text-right flex flex-col sm:flex-row items-end sm:items-center sm:justify-end gap-1 sm:gap-3 opacity-60">
+        {/* DX: privacy + terms (solo legali, senza copyright/indirizzo). */}
+        <div className="text-[10px] uppercase tracking-widest flex flex-col items-center gap-1 sm:flex-row sm:gap-3 md:justify-end md:text-right opacity-60">
           <a
             href={privacyUrl}
             target="_blank"
