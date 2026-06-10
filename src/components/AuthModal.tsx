@@ -71,7 +71,10 @@ export default function AuthModal({ open, onClose, initialTab = 'login' }: AuthM
 
   // Quando il captcha e' richiesto (siteKey presente) MA non ancora risolto,
   // disabilitiamo i bottoni submit per evitare invii senza token.
-  const captchaRequired = !!turnstileSiteKey;
+  // Il captcha vale SOLO per register/forgot (dove il widget e' renderizzato):
+  // sul login non viene mostrato, quindi non deve mai bloccare il submit.
+  const captchaRequired =
+    !!turnstileSiteKey && (tab === 'register' || tab === 'forgot');
   const captchaReady = !captchaRequired || captchaToken.length > 0;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -315,4 +318,3 @@ export default function AuthModal({ open, onClose, initialTab = 'login' }: AuthM
     </AnimatePresence>
   );
 }
-
